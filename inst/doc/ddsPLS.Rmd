@@ -1,0 +1,61 @@
+---
+title: "Mono and Multi-block Data-Driven sparse PLS (mdd-sPLS)"
+author: "Hadrien LORENZO"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: bib.bib
+---
+
+# Mono-block
+## Regression case
+### Build a model
+We have worked on the Liver Toxicity dataset, see @bushel2007simultaneous. This data set contains the expression measure of 3116 genes and 10 clinical measurements for 64 subjects (rats) that were exposed to non-toxic, moderately toxic or severely toxic doses of acetaminophen in a controlled experiment. Therefore the structure is :
+$$\mathbf{X}\in\mathbb{R}^{64\times3116},\mathbf{Y}\in\mathbb{R}^{64\times10}$$
+```{r, fig.show='hold',message=FALSE}
+library(ddsPLS)
+library(doParallel)
+library(RColorBrewer)
+data("liver.toxicity")
+X <- scale(liver.toxicity$gene)
+Y <- scale(liver.toxicity$clinic)
+mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,lambda=0.9,R = 1,
+                             mode = "reg",verbose = TRUE)
+```
+
+### Start cross-validation
+```{r,fig.width=7, fig.height=10,message=FALSE}
+res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,
+                           R = 1,lambda_min=0.4,n_lambda=2,
+                           mode = "reg",NCORES = 1,
+                           kfolds = 2)
+plot(res_cv_reg,legend_names=colnames(Y))
+```
+
+## Classification case
+### Build a model
+The data set penicilliumYES has 36 rows and 3754 columns, see @clemmensen2007method The variables are 1st order statistics from multi-spectral images of three species of Penicillium fungi: Melanoconidium, Polonicum, and Venetum. These are the data used in the Clemmemsen et al "Sparse Discriminant Analysis" paper. Therefore the structure is, where $\mathbf{Y}$ is the dummy matrix of the $3$ classes :
+$$\mathbf{X}\in\mathbb{R}^{36\times3754},\mathbf{Y}\in\mathbb{R}^{36\times3}$$
+```{r, fig.show='hold',message=FALSE}
+data("penicilliumYES")
+X <- penicilliumYES$X
+X <- scale(X[,which(apply(X,2,sd)>0)])
+Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),
+                             function(tt){rep(tt,12)})))
+mddsPLS_model_class <- mddsPLS(Xs = X,Y = Y,lambda = 0.958,R = 2,
+                               mode = "clas",verbose = TRUE)
+
+```
+
+### Start cross-validation
+```{r,fig.width=7, fig.height=6,message=FALSE}
+res_cv_class <- perf_mddsPLS(X,Y,R = 2,lambda_min=0.94,n_lambda=2,
+                             mode = "clas",NCORES = 1,
+                             fold_fixed = rep(1:12,3))
+plot(res_cv_class,legend_names = levels(Y))
+```
+
+# References
