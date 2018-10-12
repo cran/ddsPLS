@@ -149,15 +149,15 @@ predict.mddsPLS  <- function(object,newdata,...){
           t_r_new[[r]][,k] <- newX[[k]]%*%mod_0$mod$u[[k]][,r]
         }
       }
-      df_new <- data.frame(do.call(cbind,t_r_new)%*%mod_0$mod$beta_comb)
+      df_new <- data.frame(do.call(cbind,t_r_new))#%*%mod_0$mod$beta_comb)
       colnames(df_new) <- paste("X",2:(ncol(df_new)+1),sep="")
       if(is.null(mod_0$mod$B)){
         newY <- list(class=sample(levels(mod_0$Y_0),size = 1,
                                   prob = table(mod_0$Y_0)/sum(table(mod_0$Y_0))))
       }
       else if(!is.null(mod_0$mod$B$sds)){
-        pos_sds_0 <- 1+which(mod_0$mod$B$sds)
-        newY <- predict(mod_0$mod$B,df_new[,c(1,pos_sds_0)])
+        pos_sds_no_0 <- which(mod_0$mod$B$sds!=0)
+        newY <- predict(mod_0$mod$B$B,df_new[,pos_sds_no_0,drop=F])
       }else{
         newY <- predict(mod_0$mod$B,df_new)
       }

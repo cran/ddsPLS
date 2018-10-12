@@ -2,7 +2,7 @@
 #'
 #' This function should not be used directly by the user.
 #'
-#' @param Xs A data-frame of a matrix or a list of data-frames or matrices of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.
+#' @param Xs A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.
 #' @param Y A matrix of n rows of a vector of length n detailing the response matrix. No missing values are allowed in that matrix.
 #' @param lambda A real \eqn{[0,1]} where 1 means just perfect correlations will be used and 0 no regularization is used.
 #' @param R A strictly positive integer detailing the number of components to build in the model.
@@ -17,9 +17,9 @@
 #'   \item{ts}{A list of length \emph{R}. Each element is a \emph{nXK} matrix : the
 #'    scores per axis per block.}
 #'   \item{(t,s)}{Two \emph{nXR} matrices, scores of the \emph{X} and \emph{Y} parts.}
-#'   \item{(t_frak,s_frak)}{Two \emph{nXR} matrices, final scores of the \emph{X} and \emph{Y} part.
-#'    They correspond to \emph{PLS} scores of \emph{(t,s)} scores and so \emph{t_frak^T s_frak} is diagonal,
-#'    \emph{t_frak}, respectively \emph{s_frak}, carries the same information as \emph{t}, respectively \emph{s}.}
+#'   \item{(t_ort,s_ort)}{Two \emph{nXR} matrices, final scores of the \emph{X} and \emph{Y} part.
+#'    They correspond to \emph{PLS} scores of \emph{(t,s)} scores and so \emph{t_ort^T s_ort} is diagonal,
+#'    \emph{t_ort}, respectively \emph{s_ort}, carries the same information as \emph{t}, respectively \emph{s}.}
 #'   \item{B}{A list of length \emph{K}. Each element is a \emph{p_kXq} matrix : the
 #'    regression matrix per block.}
 #'   \item{(mu_x_s,sd_x_s)}{Two lists of length \emph{K}. Each element is a \emph{p_k} vector : the
@@ -112,38 +112,123 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
   }
   t <- matrix(NA,n,R)
   v <- matrix(0,q,R)
-
-  z_all <- do.call(cbind,z_r)
-  svd_all <- svd(z_all,nu=R,nv=R)
-  u <- svd_all$v
-  v0 <- svd_all$u
-  v <- v0
-  s <- Y%*%v0
-  t_all <- do.call(cbind,t_r)
-  t <-  t_all%*%u
-  svd_frak <- svd(crossprod(t,s),nu = R,nv = R)
-  u_frak <- svd_frak$u
-  v_frak <- svd_frak$v
-  t_frak <- t%*%u_frak
-  s_frak <- s%*%v_frak
-  alphas <- rep(0,R)
+  ## Optimization criterion solution ######################### -----------------
+  # theta <- rep(0,R*K)
+  # count <- 1
+  # for(r in 1:R){
+  #   for(k in 1:K){
+  #     theta[count] <- sqrt(crossprod(z_r[[r]][,k]))
+  #     count <- count + 1
+  #   }
+  # }
+  # norm_theta <- as.numeric(sqrt(crossprod(theta)))
+  # if(norm_theta!=0){
+  #   beta <- matrix(theta/norm_theta,ncol=1)
+  # }
+  # else{
+  #   beta <- matrix(theta,ncol=1)
+  # }
+  # BETA <- matrix(0,R,K)
+  # s_soft <- matrix(rep(0,q),ncol = 1)
+  # count <- 1
+  # for(r in 1:R){
+  #   for(k in 1:K){
+  #     BETA[r,k] <- beta[count]
+  #     s_soft <- s_soft + beta[count]*z_r[[r]][,k]
+  #     count <- count + 1
+  #   }
+  # }
+  # norm_s_soft <- as.numeric(sqrt(crossprod(s_soft)))
+  # if(norm_s_soft!=0){
+  #   v <- matrix(s_soft/norm_s_soft,ncol=1)
+  # }
+  # else{
+  #   v <- matrix(s_soft,ncol=1)
+  # }
+  # U_t_super <- list()
+  # T_super <- matrix(0,nrow=n,ncol=R)
+  # S_soft <- matrix(0,nrow=q,ncol=R)
+  # V_super <- matrix(0,nrow=q,ncol=R)
+  # count <- 1
+  # for(k in 1:K){
+  #   U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
+  #   for(r in 1:R){
+  #     U_t_super[[k]][,r] <- u_t_r[[k]][,r]*as.numeric(BETA[r,k])
+  #     count <- count + 1
+  #   }
+  #   T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
+  #   S_soft <- S_soft + Ms[[k]]%*%U_t_super[[k]]
+  # }
+  # for(r in 1:R){
+  #   norm_s_soft_r <- as.numeric(sqrt(crossprod(S_soft[,r])))
+  #   if(norm_s_soft_r!=0){
+  #     V_super[,r] <- S_soft[,r]/norm_s_soft_r
+  #   }
+  # }
+  ## -------------------------- ######################### -----------------
+  ## Big SVD solution ######################### -----------------
+  U_t_super <- list()
+  T_super <- matrix(0,nrow=n,ncol=R)
+  Z <- do.call(cbind,z_r)
+  svd_Z <- svd(Z,nu = R,nv = R)
+  beta_all <- svd_Z$v
+  beta_list <- list()
+  V_super <- Z%*%beta_all
   for(r in 1:R){
-    n_t_2<-sum(diag(crossprod(t_frak[,r])))#t[,r])))
-    if(n_t_2!=0){
-      alphas[r] <- sum(diag(crossprod(s_frak[,r],t_frak[,r])))/n_t_2#sum(diag(crossprod(s[,r],t[,r])))/n_t_2
-    }else{
-      alphas[r] <- 0
-    }
+    beta_list[[r]] <- beta_all[K*(r-1)+1:K,,drop=F]
   }
+  v = V_super <- svd_Z$u
+  for(k in 1:K){
+    U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
+    for(r in 1:R){
+      U_t_super[[k]] <- U_t_super[[k]] + u_t_r[[k]][,r,drop=F]%*%beta_list[[r]][k,,drop=F]
+    }
+    T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
+  }
+
+
+
+  ## -------------------------- ######################### -----------------
+  S_super <- Y%*%V_super
+  T_S <- crossprod(T_super,S_super)
+  T_T <- crossprod(T_super)
+  # svd_ort <- svd(S_T,nu = R,nv = R)
+  svd_ort_T_super <- svd(T_T,nu = R,nv = R)
+  u_ort <- svd_ort_T_super$u
+  v_ort <- svd_ort_T_super$v
+  Delta_ort <- svd_ort_T_super$d
+  t_ort <- T_super%*%u_ort
+  s_ort <- S_super%*%v_ort
+
+  D_0_inv <- matrix(0,nrow = length(Delta_ort),ncol = length(Delta_ort))
+  diag(D_0_inv) <- 1/Delta_ort
+  B_0 <- v_ort%*%tcrossprod(D_0_inv,u_ort)%*%T_S
+
+  A <- matrix(0,R,R)
+  for(r in 1:R){
+    A[r,r] <- as.numeric(crossprod(t_ort[,r],s_ort[,r]))/as.numeric(crossprod(t_ort[,r]))
+  }
+
+  u <- beta_all#beta# deprecated
+  s <- S_super
+  t <- T_super
+
+
   if(mode=="reg"){
     B <- list()
+    count <- 1
     for(k in 1:K){
-      beta_k <- u[(k-1)*R+1:R,,drop=FALSE]
-      B[[k]] <- u_t_r[[k]]%*%beta_k%*%u_frak
-      for(r in 1:R){
-        B[[k]][,r] <- B[[k]][,r]*alphas[r]
+      B_k <- tcrossprod(U_t_super[[k]]%*%B_0,V_super)
+      if(anyNA(B_k)){
+        B_k <- matrix(0,nrow(B_k),ncol(B_k))
       }
-      B[[k]]  <- tcrossprod(B[[k]],v%*%v_frak)
+
+      # B_k <-  U_t_super[[k]]%*%u_ort%*%A%*%t(v%*%v_ort)
+      # if(anyNA(B_k)){
+      #   B_k <- matrix(0,nrow(B_k),ncol(B_k))
+      # }
+
+      B[[k]] <- B_k
     }
   }
   else{
@@ -176,7 +261,7 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
     cat(paste("        @ (",paste(apply(v,2,function(u){length(which(abs(u)>1e-9))}),
                                   collapse = ","),") variable(s)",sep=""));cat("\n")
   }
-  list(u=u_t_r,v=v,ts=t_r,beta_comb=u,t=t,s=s,t_frak=t_frak,s_frak=s_frak,B=B,mu_x_s=mu_x_s,sd_x_s=sd_x_s,mu_y=mu_y,
+  list(u=u_t_r,v=v,ts=t_r,beta_comb=u,t=t,s=s,t_ort=t_ort,s_ort=s_ort,B=B,mu_x_s=mu_x_s,sd_x_s=sd_x_s,mu_y=mu_y,
        sd_y=sd_y,R=R,q=q,Ms=Ms,lambda=lambda)
 }
 
@@ -188,7 +273,7 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
 #' must be built on. The coefficient lambda regularizes the quality of proximity to the data choosing to forget the least correlated bounds between
 #' \eqn{X} and \eqn{Y} datasets.
 #'
-#' @param Xs A data-frame of a matrix or a list of data-frames or matrices of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.
+#' @param Xs A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.
 #' @param Y A matrix of \emph{n} rows of a vector of length \emph{n} detailing the response matrix. No missing values are allowed in that matrix.
 #' @param lambda A real \eqn{[0,1]} where 1 means just perfect correlations will be used and 0 no regularization is used.
 #' @param R A strictly positive integer detailing the number of components to build in the model.
@@ -296,12 +381,12 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",
             }
           }
           mod <- MddsPLS_core(Xs,Y,lambda=lambda,R=R,mode=mode)
-          if(sum(abs(mod$t_frak))*sum(abs(mod_0$t_frak))!=0){
+          if(sum(abs(mod$t_ort))*sum(abs(mod_0$t_ort))!=0){
             err <- 0
             for(r in 1:R){
-              n_new <- sqrt(sum(mod$t_frak[,r]^2))
-              n_0 <- sqrt(sum(mod_0$t_frak[,r]^2))
-              err <- err + abs(1-as.numeric(abs(diag(crossprod(mod$t_frak[,r],mod_0$t_frak[,r]))))/(n_new*n_0))
+              n_new <- sqrt(sum(mod$t_ort[,r]^2))
+              n_0 <- sqrt(sum(mod_0$t_ort[,r]^2))
+              err <- err + abs(1-as.numeric(abs(diag(crossprod(mod$t_ort[,r],mod_0$t_ort[,r]))))/(n_new*n_0))
             }
           }
           else{

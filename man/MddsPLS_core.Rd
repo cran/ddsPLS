@@ -8,7 +8,7 @@ MddsPLS_core(Xs, Y, lambda = 0, R = 1, mode = "reg",
   verbose = FALSE)
 }
 \arguments{
-\item{Xs}{A data-frame of a matrix or a list of data-frames or matrices of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.}
+\item{Xs}{A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.}
 
 \item{Y}{A matrix of n rows of a vector of length n detailing the response matrix. No missing values are allowed in that matrix.}
 
@@ -29,9 +29,9 @@ A list containing the following objects:
   \item{ts}{A list of length \emph{R}. Each element is a \emph{nXK} matrix : the
    scores per axis per block.}
   \item{(t,s)}{Two \emph{nXR} matrices, scores of the \emph{X} and \emph{Y} parts.}
-  \item{(t_frak,s_frak)}{Two \emph{nXR} matrices, final scores of the \emph{X} and \emph{Y} part.
-   They correspond to \emph{PLS} scores of \emph{(t,s)} scores and so \emph{t_frak^T s_frak} is diagonal,
-   \emph{t_frak}, respectively \emph{s_frak}, carries the same information as \emph{t}, respectively \emph{s}.}
+  \item{(t_ort,s_ort)}{Two \emph{nXR} matrices, final scores of the \emph{X} and \emph{Y} part.
+   They correspond to \emph{PLS} scores of \emph{(t,s)} scores and so \emph{t_ort^T s_ort} is diagonal,
+   \emph{t_ort}, respectively \emph{s_ort}, carries the same information as \emph{t}, respectively \emph{s}.}
   \item{B}{A list of length \emph{K}. Each element is a \emph{p_kXq} matrix : the
    regression matrix per block.}
   \item{(mu_x_s,sd_x_s)}{Two lists of length \emph{K}. Each element is a \emph{p_k} vector : the

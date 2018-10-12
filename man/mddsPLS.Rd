@@ -8,7 +8,7 @@ mddsPLS(Xs, Y, lambda = 0, R = 1, mode = "reg",
   errMin_imput = 1e-09, maxIter_imput = 50, verbose = FALSE)
 }
 \arguments{
-\item{Xs}{A data-frame of a matrix or a list of data-frames or matrices of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.}
+\item{Xs}{A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.}
 
 \item{Y}{A matrix of \emph{n} rows of a vector of length \emph{n} detailing the response matrix. No missing values are allowed in that matrix.}
 
