@@ -13,6 +13,8 @@
 #' \describe{
 #'   \item{u}{A list of length \emph{K}. Each element is a \emph{p_kXR} matrix : the
 #'    weights per block per axis.}
+#'   \item{u_t_super}{A list of length \emph{K}. Each element is a \emph{p_kXR} matrix : the
+#'    weights per block per axis scaled on the super description of the dataset.}
 #'   \item{v}{A \emph{qXR} matrix : the weights for the \emph{Y} part.}
 #'   \item{ts}{A list of length \emph{R}. Each element is a \emph{nXK} matrix : the
 #'    scores per axis per block.}
@@ -185,24 +187,21 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
     }
     T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
   }
-
-
-
   ## -------------------------- ######################### -----------------
   S_super <- Y%*%V_super
   T_S <- crossprod(T_super,S_super)
   T_T <- crossprod(T_super)
   # svd_ort <- svd(S_T,nu = R,nv = R)
-  svd_ort_T_super <- svd(T_T,nu = R,nv = R)
-  u_ort <- svd_ort_T_super$u
+  svd_ort_T_super <- svd(T_super,nu = 0,nv = R)
+  # u_ort <- svd_ort_T_super$u
   v_ort <- svd_ort_T_super$v
-  Delta_ort <- svd_ort_T_super$d
-  t_ort <- T_super%*%u_ort
+  Delta_ort <- svd_ort_T_super$d^2
+  t_ort <- T_super%*%v_ort
   s_ort <- S_super%*%v_ort
 
   D_0_inv <- matrix(0,nrow = length(Delta_ort),ncol = length(Delta_ort))
   diag(D_0_inv) <- 1/Delta_ort
-  B_0 <- v_ort%*%tcrossprod(D_0_inv,u_ort)%*%T_S
+  B_0 <- v_ort%*%tcrossprod(D_0_inv,v_ort)%*%T_S
 
   A <- matrix(0,R,R)
   for(r in 1:R){
@@ -212,8 +211,6 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
   u <- beta_all#beta# deprecated
   s <- S_super
   t <- T_super
-
-
   if(mode=="reg"){
     B <- list()
     count <- 1
@@ -222,12 +219,6 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
       if(anyNA(B_k)){
         B_k <- matrix(0,nrow(B_k),ncol(B_k))
       }
-
-      # B_k <-  U_t_super[[k]]%*%u_ort%*%A%*%t(v%*%v_ort)
-      # if(anyNA(B_k)){
-      #   B_k <- matrix(0,nrow(B_k),ncol(B_k))
-      # }
-
       B[[k]] <- B_k
     }
   }
@@ -261,8 +252,8 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
     cat(paste("        @ (",paste(apply(v,2,function(u){length(which(abs(u)>1e-9))}),
                                   collapse = ","),") variable(s)",sep=""));cat("\n")
   }
-  list(u=u_t_r,v=v,ts=t_r,beta_comb=u,t=t,s=s,t_ort=t_ort,s_ort=s_ort,B=B,mu_x_s=mu_x_s,sd_x_s=sd_x_s,mu_y=mu_y,
-       sd_y=sd_y,R=R,q=q,Ms=Ms,lambda=lambda)
+  list(u=u_t_r,u_t_super=U_t_super,v=v,ts=t_r,beta_comb=u,t=t,s=s,t_ort=t_ort,s_ort=s_ort,B=B,
+       mu_x_s=mu_x_s,sd_x_s=sd_x_s,mu_y=mu_y,sd_y=sd_y,R=R,q=q,Ms=Ms,lambda=lambda)
 }
 
 
@@ -386,7 +377,10 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",
             for(r in 1:R){
               n_new <- sqrt(sum(mod$t_ort[,r]^2))
               n_0 <- sqrt(sum(mod_0$t_ort[,r]^2))
-              err <- err + abs(1-as.numeric(abs(diag(crossprod(mod$t_ort[,r],mod_0$t_ort[,r]))))/(n_new*n_0))
+              if(n_new*n_0!=0){
+                err_i <- abs(1-as.numeric(abs(diag(crossprod(mod$t_ort[,r],mod_0$t_ort[,r]))))/(n_new*n_0))
+                err <- err + err_i
+              }
             }
           }
           else{

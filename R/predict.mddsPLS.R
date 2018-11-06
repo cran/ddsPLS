@@ -49,7 +49,7 @@ predict.mddsPLS  <- function(object,newdata,...){
         }
       }
       else{
-        vars_Y_here <- matrix(0,nrow(t_X_here),1)
+        vars_Y_here <- matrix(0,nrow(t_X_here),R)
       }
       ## Generate model
       model_impute_test <- mddsPLS(t_X_here,vars_Y_here,lambda = lambda,R = R,maxIter_imput = mod_0$maxIter_imput)
@@ -138,35 +138,41 @@ predict.mddsPLS  <- function(object,newdata,...){
       }
     }
     else{
-      t_r_new <- list()
+      #t_r_new <- list()
+      # for(k in 1:K){
+      #   if(k==1){
+      #     for(r in 1:R){
+      #       t_r_new[[r]] <- matrix(NA,n_new,K)
+      #     }
+      #   }
+      #   for(r in 1:R){
+      #     t_r_new[[r]][,k] <- newX[[k]]%*%mod_0$mod$u_t_super#u[[k]][,r]
+      #   }
+      # }
+      T_super_new <- matrix(0,nrow=n_new,ncol=R)
       for(k in 1:K){
-        if(k==1){
-          for(r in 1:R){
-            t_r_new[[r]] <- matrix(NA,n_new,K)
-          }
-        }
-        for(r in 1:R){
-          t_r_new[[r]][,k] <- newX[[k]]%*%mod_0$mod$u[[k]][,r]
-        }
+        T_super_new <- T_super_new + newX[[k]]%*%mod_0$mod$u_t_super[[k]]
       }
-      df_new <- data.frame(do.call(cbind,t_r_new))#%*%mod_0$mod$beta_comb)
+
+      df_new <- data.frame(T_super_new)# df_new <- data.frame(do.call(cbind,T_super_new))#%*%mod_0$mod$beta_comb)
       colnames(df_new) <- paste("X",2:(ncol(df_new)+1),sep="")
       if(is.null(mod_0$mod$B)){
-        newY <- list(class=sample(levels(mod_0$Y_0),size = 1,
-                                  prob = table(mod_0$Y_0)/sum(table(mod_0$Y_0))))
+        newY <- list(class=sample(1:nlevels(mod_0$Y_0),size = 1,
+                                  prob = table(mod_0$Y_0)/sum(table(mod_0$Y_0))))$'class'
       }
       else if(!is.null(mod_0$mod$B$sds)){
         pos_sds_no_0 <- which(mod_0$mod$B$sds!=0)
-        newY <- predict(mod_0$mod$B$B,df_new[,pos_sds_no_0,drop=F])
-      }else{
-        newY <- predict(mod_0$mod$B,df_new)
+        newY <- predict(mod_0$mod$B$B,df_new[,pos_sds_no_0,drop=F])$'class'
+      }
+      else{
+        newY <- predict(mod_0$mod$B,df_new)$'class'
       }
     }
   }
   else{
-    newY <- matrix(NA,n_new,q)
+    newY <- rep(NA,n_new)
     for(i_new in 1:n_new){
-      newY[i_new,] <- predict.mddsPLS(mod_0,lapply(newX,
+      newY[i_new] <- predict.mddsPLS(mod_0,lapply(newX,
                                            function(nx,ix){
                                              nx[ix,,drop=FALSE]
                                            },i_new))
