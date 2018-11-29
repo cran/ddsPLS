@@ -1,5 +1,5 @@
 Package: ddsPLS
-Version: 1.0.3
+Version: 1.0.4
 Title: Multi-Data-Driven Sparse PLS Robust to Missing Samples
 Description: Allows to build Multi-Data-Driven Sparse PLS models. Multi-blocks with 
     high-dimensional settings are particularly sensible to this.
@@ -18,7 +18,7 @@ Suggests: knitr,rmarkdown
 Depends: R (>= 2.10)
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2018-11-09 10:03:29 UTC; hl1
+Packaged: 2018-11-29 12:48:27 UTC; hl1
 Author: Hadrien Lorenzo [aut, cre]
 Repository: CRAN
-Date/Publication: 2018-11-09 14:20:12 UTC
+Date/Publication: 2018-11-29 13:00:03 UTC

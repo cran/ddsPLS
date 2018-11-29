@@ -170,9 +170,10 @@ predict.mddsPLS  <- function(object,newdata,...){
     }
   }
   else{
-    newY <- rep(NA,n_new)
+    newY <- matrix(NA,n_new,q)
     for(i_new in 1:n_new){
-      newY[i_new] <- predict.mddsPLS(mod_0,lapply(newX,
+      # Solved by Soso
+      newY[i_new,] <- predict.mddsPLS(mod_0,lapply(newX,
                                            function(nx,ix){
                                              nx[ix,,drop=FALSE]
                                            },i_new))

@@ -90,12 +90,13 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
   u_t_r = u_t_r_0 <- list()
   t_r <- list()
   z_r <- list()
+  z_t <- list()
   # BETA_r <- list()
   for(k in 1:K){
     if(norm(Ms[[k]])==0){
       svd_k <- list(v=matrix(0,
                              nrow = ncol(Ms[[k]]),
-                             ncol = R))
+                             ncol = R),d=0)
     }
     else{
       svd_k <- svd(Ms[[k]],nu = 0,nv = R)
@@ -111,80 +112,85 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",verbose=FALSE){
       t_r[[r]][,k] <- Xs[[k]]%*%u_t_r[[k]][,r]
       z_r[[r]][,k] <- Ms[[k]]%*%u_t_r[[k]][,r]
     }
+    z_t[[k]] <- Ms[[k]]%*%u_t_r[[k]]
   }
   t <- matrix(NA,n,R)
   v <- matrix(0,q,R)
-  ## Optimization criterion solution ######################### -----------------
-  # theta <- rep(0,R*K)
-  # count <- 1
-  # for(r in 1:R){
-  #   for(k in 1:K){
-  #     theta[count] <- sqrt(crossprod(z_r[[r]][,k]))
-  #     count <- count + 1
-  #   }
-  # }
-  # norm_theta <- as.numeric(sqrt(crossprod(theta)))
-  # if(norm_theta!=0){
-  #   beta <- matrix(theta/norm_theta,ncol=1)
-  # }
-  # else{
-  #   beta <- matrix(theta,ncol=1)
-  # }
-  # BETA <- matrix(0,R,K)
-  # s_soft <- matrix(rep(0,q),ncol = 1)
-  # count <- 1
-  # for(r in 1:R){
-  #   for(k in 1:K){
-  #     BETA[r,k] <- beta[count]
-  #     s_soft <- s_soft + beta[count]*z_r[[r]][,k]
-  #     count <- count + 1
-  #   }
-  # }
-  # norm_s_soft <- as.numeric(sqrt(crossprod(s_soft)))
-  # if(norm_s_soft!=0){
-  #   v <- matrix(s_soft/norm_s_soft,ncol=1)
-  # }
-  # else{
-  #   v <- matrix(s_soft,ncol=1)
-  # }
-  # U_t_super <- list()
-  # T_super <- matrix(0,nrow=n,ncol=R)
-  # S_soft <- matrix(0,nrow=q,ncol=R)
-  # V_super <- matrix(0,nrow=q,ncol=R)
-  # count <- 1
-  # for(k in 1:K){
-  #   U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
-  #   for(r in 1:R){
-  #     U_t_super[[k]][,r] <- u_t_r[[k]][,r]*as.numeric(BETA[r,k])
-  #     count <- count + 1
-  #   }
-  #   T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
-  #   S_soft <- S_soft + Ms[[k]]%*%U_t_super[[k]]
-  # }
-  # for(r in 1:R){
-  #   norm_s_soft_r <- as.numeric(sqrt(crossprod(S_soft[,r])))
-  #   if(norm_s_soft_r!=0){
-  #     V_super[,r] <- S_soft[,r]/norm_s_soft_r
-  #   }
-  # }
+  if(F){
+    ## Optimization criterion solution ######################### -----------------
+    # theta <- rep(0,R*K)
+    # count <- 1
+    # for(r in 1:R){
+    #   for(k in 1:K){
+    #     theta[count] <- sqrt(crossprod(z_r[[r]][,k]))
+    #     count <- count + 1
+    #   }
+    # }
+    # norm_theta <- as.numeric(sqrt(crossprod(theta)))
+    # if(norm_theta!=0){
+    #   beta <- matrix(theta/norm_theta,ncol=1)
+    # }
+    # else{
+    #   beta <- matrix(theta,ncol=1)
+    # }
+    # BETA <- matrix(0,R,K)
+    # s_soft <- matrix(rep(0,q),ncol = 1)
+    # count <- 1
+    # for(r in 1:R){
+    #   for(k in 1:K){
+    #     BETA[r,k] <- beta[count]
+    #     s_soft <- s_soft + beta[count]*z_r[[r]][,k]
+    #     count <- count + 1
+    #   }
+    # }
+    # norm_s_soft <- as.numeric(sqrt(crossprod(s_soft)))
+    # if(norm_s_soft!=0){
+    #   v <- matrix(s_soft/norm_s_soft,ncol=1)
+    # }
+    # else{
+    #   v <- matrix(s_soft,ncol=1)
+    # }
+    # U_t_super <- list()
+    # T_super <- matrix(0,nrow=n,ncol=R)
+    # S_soft <- matrix(0,nrow=q,ncol=R)
+    # V_super <- matrix(0,nrow=q,ncol=R)
+    # count <- 1
+    # for(k in 1:K){
+    #   U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
+    #   for(r in 1:R){
+    #     U_t_super[[k]][,r] <- u_t_r[[k]][,r]*as.numeric(BETA[r,k])
+    #     count <- count + 1
+    #   }
+    #   T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
+    #   S_soft <- S_soft + Ms[[k]]%*%U_t_super[[k]]
+    # }
+    # for(r in 1:R){
+    #   norm_s_soft_r <- as.numeric(sqrt(crossprod(S_soft[,r])))
+    #   if(norm_s_soft_r!=0){
+    #     V_super[,r] <- S_soft[,r]/norm_s_soft_r
+    #   }
+    # }
+  }
   ## -------------------------- ######################### -----------------
   ## Big SVD solution ######################### -----------------
   U_t_super <- list()
-  T_super <- matrix(0,nrow=n,ncol=R)
-  Z <- do.call(cbind,z_r)
+  Z <- do.call(cbind,z_t)#z_r)
   svd_Z <- svd(Z,nu = R,nv = R)
   beta_all <- svd_Z$v
   beta_list <- list()
   V_super <- Z%*%beta_all
-  for(r in 1:R){
-    beta_list[[r]] <- beta_all[K*(r-1)+1:K,,drop=F]
+  for(k in 1:K){#r in 1:R){
+    #beta_list[[r]] <- beta_all[K*(r-1)+1:K,,drop=F]
+    beta_list[[k]] <- beta_all[R*(k-1)+1:R,,drop=F]
   }
   v = V_super <- svd_Z$u
+  T_super <- matrix(0,nrow=n,ncol=R)
   for(k in 1:K){
-    U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
-    for(r in 1:R){
-      U_t_super[[k]] <- U_t_super[[k]] + u_t_r[[k]][,r,drop=F]%*%beta_list[[r]][k,,drop=F]
-    }
+    # U_t_super[[k]] <- matrix(0,nrow=nrow(u_t_r[[k]]),ncol=R)
+    # for(r in 1:R){
+    #   U_t_super[[k]] <- U_t_super[[k]] + u_t_r[[k]][,r,drop=F]%*%beta_list[[r]][k,,drop=F]
+    # }
+    U_t_super[[k]] <- u_t_r[[k]]%*%beta_list[[k]]
     T_super <- T_super + Xs[[k]]%*%U_t_super[[k]]
   }
   ## -------------------------- ######################### -----------------

@@ -164,10 +164,11 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
                         }
                         else{
                           Y_est <- factor(levels(Y)[Y_est],levels=levels(Y))
-                          errors[i] <- paste(Y_est,Y_test,sep="/",collapse = " ")#length(which(Y_est!=as.numeric(Y_test)))#
+                          errors[i] <- paste(Y_est,Y_test,sep="/",collapse = " ")
                           v_no_null <- which(rowSums(abs(mod_0$mod$v))>1e-10)
                           select_y[i,v_no_null] <- 1
                         }
+                        cat(" ---- ");cat(errors[i,])
                       }
                       cbind(paras_here,errors,select_y,has_converged,time_build)
                     }
