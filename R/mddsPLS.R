@@ -409,3 +409,4 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",
   class(out) <- "mddsPLS"
   out
 }
+

@@ -55,13 +55,18 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,legend_names=NULL,
   }
   ranges <- apply(cc,2,max)
   l_lambdas <- length(unique(res_perf_mdd$RMSEP[,2]))
-  if(l_lambdas>1){
-    ranges <- sort(ranges[intersect(which(ranges>=min(res_perf_mdd$RMSEP[,2])),
-                                    which(ranges<=max(res_perf_mdd$RMSEP[,2])))])
-    card_ranges <- rev(0:(length(ranges)-1))
+  if(ncol(cc)>1){
+    if(l_lambdas>1){
+      ranges <- sort(ranges[intersect(which(ranges>=min(res_perf_mdd$RMSEP[,2])),
+                                      which(ranges<=max(res_perf_mdd$RMSEP[,2])))])
+      card_ranges <- rev(0:(length(ranges)-1))
+      browser()
+    }else{
+      ranges <- sort(ranges[which(ranges>=min(res_perf_mdd$RMSEP[,2]))])
+      card_ranges <- rev(0:(length(ranges)-1))
+    }
   }else{
-    ranges <- sort(ranges[which(ranges>=min(res_perf_mdd$RMSEP[,2]))])
-    card_ranges <- rev(0:(length(ranges)-1))
+    card_ranges <- 1
   }
   ERRORS <- res_perf_mdd
   FREQ <- ERRORS$FREQ
@@ -133,7 +138,6 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,legend_names=NULL,
   graphics::par(new = TRUE)
   graphics::plot(ranges,card_ranges, type = "l", xaxt = "n", yaxt = "n",
                  ylab = "", xlab = "", col = grDevices::adjustcolor("red",0), lty = 1,lwd=5)
-
   graphics::axis(side = 3,at=ranges,labels=card_ranges, col="red",col.axis="red")
   graphics::mtext("", side = 3, line = 3, col = "red")
   if(res_perf_mdd$mod=="reg"){
