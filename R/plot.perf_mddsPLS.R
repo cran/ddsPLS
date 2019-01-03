@@ -49,6 +49,7 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,legend_names=NULL,
   }
   else{
     Y_df <- data.frame(res_perf_mdd$Y)
+    colnames(Y_df) <- "Y"
     Y <- scale(stats::model.matrix( ~ Y - 1, data=Y_df))
     cc <- abs(crossprod(Y,X_all)/(nrow(Y)-1))
   }
