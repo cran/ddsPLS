@@ -1,4 +1,4 @@
-8855ae64ee6db1eb860e9210347aacf6 *DESCRIPTION
+c2c93ed1e8e3de5ac3e45aaeff525fc2 *DESCRIPTION
 b0f7e4e41de64514b5a71b0f0d1039b9 *LICENSE
 01fd47970552d354196a81b8ec87e102 *NAMESPACE
 eef7cc5f84b5935a8eabaa03455ae014 *R/data.R
@@ -7,14 +7,14 @@ da9de9d8df8833ae4bb0656079feca09 *R/perf_mddsPLS.R
 9906e490b2ffee786fe2dc868b7216dc *R/plot.perf_mddsPLS.R
 a42103b269370b70f02b48b6555e6025 *R/predict.mddsPLS.R
 53d5ae47fb9f474ffe81b836115c2efc *README.md
-e84f6995a5c8df0fe1bd1b18d15b975a *build/partial.rdb
+6e888d71bbf6ed260ac040e45b87274a *build/partial.rdb
 8d70ff06de5cdb2f8b367595e8b0bdf8 *build/vignette.rds
 8707bcaf5dc43cfe012df905f6abbcd6 *data/liver.toxicity.RData
 e3de580af765159c786c6b53389375ca *data/penicilliumYES.RData
 62a6b9f8395e26df415747c5150e6a04 *inst/REFERENCES.bib
 b1b05c22f2fe3436b313bd104a24a8b0 *inst/doc/ddsPLS.R
 6591ffb6cec482f1e5301f432fcbee97 *inst/doc/ddsPLS.Rmd
-a8661bce7eb9405875bdf84b2a7e9574 *inst/doc/ddsPLS.html
+5d1400ce917ca162d3a026431d1ca3e9 *inst/doc/ddsPLS.html
 4527f979dc924ffcf1627d3a61b47138 *man/MddsPLS_core.Rd
 b9645f09f48206172c92c6fbfb88de07 *man/liver.toxicity.Rd
 d85a69ee83e96cf3fa44efad463330a2 *man/mddsPLS.Rd
