@@ -34,7 +34,7 @@
 plot.perf_mddsPLS <- function(x,plot_mean=FALSE,legend_names=NULL,
                               pos_legend="bottomleft",...){
   res_perf_mdd <- x
-
+  names(res_perf_mdd)[1] <- "RMSEP"
   X_all <- scale(do.call(cbind,res_perf_mdd$Xs))
   if(res_perf_mdd$mode=="reg"){
     cc <- matrix(NA,nrow = ncol(res_perf_mdd$Y),ncol = ncol(X_all))
@@ -60,7 +60,6 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,legend_names=NULL,
       ranges <- sort(ranges[intersect(which(ranges>=min(res_perf_mdd$RMSEP[,2])),
                                       which(ranges<=max(res_perf_mdd$RMSEP[,2])))])
       card_ranges <- rev(0:(length(ranges)-1))
-      browser()
     }else{
       ranges <- sort(ranges[which(ranges>=min(res_perf_mdd$RMSEP[,2]))])
       card_ranges <- rev(0:(length(ranges)-1))
