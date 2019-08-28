@@ -2,13 +2,13 @@
 % Please edit documentation in R/mddsPLS.R
 \name{MddsPLS_core}
 \alias{MddsPLS_core}
-\title{The core function of the Multi-Data-Driven sparse PLS function}
+\title{The core function of the Multi-Data-Driven sparse PLS function.}
 \usage{
-MddsPLS_core(Xs, Y, lambda = 0, R = 1, mode = "reg",
-  verbose = FALSE)
+MddsPLS_core(Xs, Y, lambda = 0, R = 1, mode = "reg", L0 = NULL,
+  verbose = FALSE, id_na = NULL, NZV = 1e-09)
 }
 \arguments{
-\item{Xs}{A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \emph{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \emph{K}.}
+\item{Xs}{A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \strong{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \strong{K}.}
 
 \item{Y}{A matrix of n rows of a vector of length n detailing the response matrix. No missing values are allowed in that matrix.}
 
@@ -16,32 +16,39 @@ MddsPLS_core(Xs, Y, lambda = 0, R = 1, mode = "reg",
 
 \item{R}{A strictly positive integer detailing the number of components to build in the model.}
 
-\item{mode}{A character chain. Possibilities are "\emph{reg}", which implies regression problem or anything else which means clustering is considered. Default is "\emph{reg}".}
+\item{mode}{A character chain. Possibilities are "\strong{(reg,lda,logit)}", which implies regression problem, linear discriminant analysis (through the paclkage \code{MASS}, function \code{lda}) and logistic regression (function \code{glm}). Default is \strong{reg}.}
+
+\item{L0}{An integer non nul parameter giving the largest number of X variables that can be selected.}
 
 \item{verbose}{Logical. If TRUE, the function cats specificities about the model. Default is FALSE.}
+
+\item{id_na}{A list of na indices for each block. Initialized to NULL.}
+
+\item{NZV}{Float. The floatting value above which the weights are set to 0.}
 }
 \value{
 A list containing the following objects:
 \describe{
-  \item{u}{A list of length \emph{K}. Each element is a \emph{p_kXR} matrix : the
+  \item{u}{A list of length \strong{K}. Each element is a \strong{p_kXR} matrix : the
    weights per block per axis.}
-  \item{u_t_super}{A list of length \emph{K}. Each element is a \emph{p_kXR} matrix : the
-   weights per block per axis scaled on the super description of the dataset.}
-  \item{v}{A \emph{qXR} matrix : the weights for the \emph{Y} part.}
-  \item{ts}{A list of length \emph{R}. Each element is a \emph{nXK} matrix : the
+  \item{u_t_super}{A list of length \strong{K}. Each element is a \strong{p_kXR} matrix : the
+   weights per block per axis scaled on the super description of the data set. Denoted as
+   \strong{scaled super-weights}.}
+  \item{v}{A \strong{qXR} matrix : the weights for the \strong{Y} part.}
+  \item{ts}{A list of length \strong{R}. Each element is a \strong{nXK} matrix : the
    scores per axis per block.}
-  \item{(t,s)}{Two \emph{nXR} matrices, scores of the \emph{X} and \emph{Y} parts.}
-  \item{(t_ort,s_ort)}{Two \emph{nXR} matrices, final scores of the \emph{X} and \emph{Y} part.
-   They correspond to \emph{PLS} scores of \emph{(t,s)} scores and so \emph{t_ort^T s_ort} is diagonal,
-   \emph{t_ort}, respectively \emph{s_ort}, carries the same information as \emph{t}, respectively \emph{s}.}
-  \item{B}{A list of length \emph{K}. Each element is a \emph{p_kXq} matrix : the
+  \item{(t,s)}{Two \strong{nXR} matrices, super-scores of the \strong{X} and \strong{Y} parts.}
+  \item{(t_ort,s_ort)}{Two \strong{nXR} matrices, final scores of the \strong{X} and \strong{Y} part.
+   They correspond to \strong{PLS} scores of \strong{(t,s)} scores and so \strong{t_ort^T s_ort} is diagonal,
+   \strong{t_ort}, respectively \strong{s_ort}, carries the same information as \strong{t}, respectively \strong{s}.}
+  \item{B}{A list of length \strong{K}. Each element is a \strong{p_kXq} matrix : the
    regression matrix per block.}
-  \item{(mu_x_s,sd_x_s)}{Two lists of length \emph{K}. Each element is a \emph{p_k} vector : the
+  \item{(mu_x_s,sd_x_s)}{Two lists of length \strong{K}. Each element is a \strong{p_k} vector : the
    mean and standard deviation variables per block.}
-  \item{(mu_y,sd_y)}{Two vectors of length \emph{q} : the mean and the standard deviation variables for \emph{Y} part.}
+  \item{(mu_y,sd_y)}{Two vectors of length \strong{q} : the mean and the standard deviation variables for \strong{Y} part.}
   \item{R}{Given as an input.}
-  \item{q}{A non negatvie integer : the number of variables of \emph{Y} matrix. }
-  \item{Ms}{A list of length \emph{K}. Each element is a \emph{qXp_k} matrix : the
+  \item{q}{A non negative integer : the number of variables of \strong{Y} matrix. }
+  \item{Ms}{A list of length \strong{K}. Each element is a \strong{qXp_k} matrix : the
    soft-thresholded empirical variance-covariance matrix \eqn{Y^TX_k/(n-1)}.}
   \item{lambda}{Given as an input.}
 }

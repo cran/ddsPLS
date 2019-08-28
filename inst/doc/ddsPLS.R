@@ -1,104 +1,111 @@
-## ----eval=F--------------------------------------------------------------
-#  n_lambda <- 20
+## ----include=FALSE-------------------------------------------------------
+DPI=30
+out.width="1000px"
+out.height="1000px"
+library(htmltools)
+tagList(rmarkdown::html_dependency_font_awesome())
 
-## ----eval=F--------------------------------------------------------------
-#  NCORES <- 7
+## ---- eval=F-------------------------------------------------------------
+#  # For no named matrices
+#  Xs <- list(X1,X2,X3)
+#  
+#  # For names matrices
+#  Xs <- list(X_dna=X1,X_proteo=X2,X_RNA=X3)
 
 ## ---- fig.show='hold',message=FALSE--------------------------------------
 library(ddsPLS)
 
-## ---- fig.show='hold',message=FALSE,eval=F-------------------------------
-#  library(doParallel)
-#  library(RColorBrewer)
-#  data("liver.toxicity")
-#  X <- scale(liver.toxicity$gene)
-#  Y <- scale(liver.toxicity$clinic)
-#  mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,lambda=0.9,R = 1,
-#                               mode = "reg",verbose = TRUE)
+## ----eval=F--------------------------------------------------------------
+#  mode
 
-## ----fig.width=12, fig.height=10,message=FALSE,eval=F--------------------
-#  res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,
-#                             R = 1,lambda_min=0.7,n_lambda=n_lambda,
+## ---- eval=F-------------------------------------------------------------
+#  data("penicilliumYES")
+#  X <- penicilliumYES$X
+#  X <- scale(X[,which(apply(X,2,sd)>0)])
+#  Xs <- list(X[,1:1000],X[,-(1:1000)])
+#  Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
+#  Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
+#  
+#  mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda",verbose = TRUE)
+
+## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
+data("liverToxicity")
+X <- scale(liverToxicity$gene)
+Y <- scale(liverToxicity$clinic)
+mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 3,
+                             mode = "reg",verbose = TRUE)
+
+## ----fig.height=10,fig.width=10,echo=T,dpi=DPI,out.width= out.width,out.height=out.height----
+plot(mddsPLS_model_reg,vizu = "weights",variance = "Linear",
+     super = T,comp = c(1,2),addY = T,mar_left = 3,mar_bottom = 3,
+     pos_legend = "topright",reorder_Y = T,legend.cex = 1.5)
+
+## ----fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height----
+plot(mddsPLS_model_reg,vizu = "heatmap",comp = 1)
+
+## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
+summary(mddsPLS_model_reg)
+
+## ------------------------------------------------------------------------
+mddsPLS_model_reg$var_selected[[1]]
+
+## ----message=FALSE,eval=F------------------------------------------------
+#  n_lambda <- 50
+#  NCORES <- 7
+#  
+#  res_cv_reg_L0 <- perf_mddsPLS(Xs = X,Y = Y,
+#                             R = 1,L0s=1:50,
 #                             mode = "reg",NCORES = NCORES,kfolds = "loo")
-#  plot(res_cv_reg,legend_names=colnames(Y))
-
-## ---- fig.show='hold',fig.width=7, fig.height=5,message=FALSE,eval=T-----
-data("penicilliumYES")
-X <- penicilliumYES$X
-X <- scale(X[,which(apply(X,2,sd)>0)])
-classes <- c("Melanoconidium","Polonicum","Venetum")
-Y <- as.factor(unlist(lapply(classes,
-                             function(tt){rep(tt,12)})))
-mddsPLS_model_class <- mddsPLS(Xs = X,Y = Y,lambda = 0.956,R = 2,
-                               mode = "clas",verbose = TRUE)
-
-## ---- fig.show='hold',fig.width=7, fig.height=5,message=FALSE,eval=T-----
-plot(mddsPLS_model_class$mod$t,col=Y,pch=as.numeric(Y)+15,cex=2,
-     xlab="1st X component, 2 var. selected",
-     ylab="2nd X component, 2 var. selected")
-legend(-2,0,legend=classes,col=1:3,pch=15+(1:3),box.lty=0,y.intersp=2)
-
-## ----fig.width=7, fig.height=6,message=FALSE,eval=F----------------------
-#  res_cv_class <- perf_mddsPLS(X,Y,R = 2,lambda_min=0.92,n_lambda=n_lambda,
-#                               mode = "clas",NCORES = NCORES,
-#                               fold_fixed = rep(1:12,3))
-#  plot(res_cv_class,legend_names = levels(Y),pos_legend="bottomleft")
-
-## ----fig.width=7, fig.height=6,message=FALSE,eval=F----------------------
-#  n <- 20 # number of individuals
-#  R <- 5 # number of created dimensions in __L__
-#  T_ <- 10 # number of blocks
-#  sd_error <- 0.1 # Standard-deviation of the spike-covariance model element matrices of $E_t$ and $E_y$
-#  p_s <- sample(x = 100:200,size = T_,replace = T) # number of variables per block $X_t$
-#  q <- 10  # number of variable in $Y$
-#  R_real <- 3 # number of components of __L__ described in __Y__
-#  p_missing <- 0.3 # the proportion of missing values
-
-## ----fig.width=7, fig.height=6,message=FALSE,eval=F----------------------
-#  o_x <- seq(0,1,length.out = 1000)
-#  o_y <- (o_x-0.5)^2
-#  o_y[which(o_y<0.2)] <- 0 # keep only low or high potential diagonal elements
-#  all_omegas <- sample(o_x,prob = o_y,size = R*T_) # Select R*T_ elements
 #  
-#  all_omegas_y <- sample(o_x,prob = o_y,size = R_real) # Select R_real elements
-#  Omegas_y <- diag(c(all_omegas_y,rep(0,R-R_real))) # Create the Omega_y diagonal matrix
+#  res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,
+#                             R = 1,lambda_min=0.5,n_lambda=n_lambda,
+#                             mode = "reg",NCORES = NCORES,kfolds = "loo")
 
-## ----message=FALSE,eval=F------------------------------------------------
-#  Xs <- list()
-#  L <- matrix(rnorm(n*R),nrow = n)
-#  for(k in 1:T_){
-#      Omegas <- diag(all_omegas[1:R+(k-1)*R])
-#      Us <- svd(matrix(rnorm(p_s[k]*n),nrow = n))$v[,1:R]
-#      E_k <- matrix(rnorm(n*p_s[k],sd = sd_error),nrow = n)
-#      Xs[[k]]<- scale(E_k + tcrossprod(L%*%Omegas,Us))
-#  }
+## ----echo=F--------------------------------------------------------------
+# res_cv_reg$Xs <- NULL
+# res_cv_reg_L0$Xs <- NULL
+# save(res_cv_reg,file="res_cv_reg_noXs.RData")
+# save(res_cv_reg_L0,file="res_cv_reg_L0_noXs.RData")
+load("res_cv_reg_noXs.RData")
+load("res_cv_reg_L0_noXs.RData")
+res_cv_reg$Xs <- list(X)
+res_cv_reg_L0$Xs <- list(X)
 
-## ----message=FALSE,eval=F------------------------------------------------
-#  values <- expand.grid(1:n,1:T_)
-#  values_id <- 1:(n*T_)
-#  probas <- rep(1,n*T_)/(n*T_)
-#  number_miss_samp <- floor(n*T_*p_missing)
-#  missin_samp <- matrix(NA,nrow = number_miss_samp,ncol = 2)
-#  for(sam in 1:number_miss_samp){
-#    curr_id <- values_id[sample(values_id,size = 1,prob = probas)]
-#    missin_samp[sam,1] <- values[curr_id,1]
-#    missin_samp[sam,2] <- values[curr_id,2]
-#    probas[curr_id] <- 0
-#    if(length(which(na.omit(missin_samp[,1])==missin_samp[sam,1]))==n){
-#      probas[which(values[,1]==missin_samp[sam,1])] <- 0
-#    }
-#    Xs[[missin_samp[sam,2]]][missin_samp[sam,1],] <- NA ## Remove individual value
-#  }
-#  
+## ---- fig.show='hold',message=FALSE,eval=T,fig.width=10, fig.height=6,dpi=DPI,out.width= out.width,out.height=out.height----
+plot(res_cv_reg_L0,which_sd_plot = c(5,7),ylim=c(0,1.1),alpha.f = 0.4,
+     plot_mean = T,legend_names = colnames(Y),pos_legend = "bottomright",no_occurence = T)
 
-## ----message=FALSE,eval=F------------------------------------------------
-#  V <- svd(matrix(rnorm(q*n),nrow = n))$v[,1:R]
-#  E_y <- matrix(rnorm(q*n,sd = sd_error),nrow = n)
-#  Y <- tcrossprod(L%*%Omegas_y,V)
-#  Y <- scale(E_y + Y)
+## ---- fig.show='hold',message=FALSE,eval=T,fig.width=10, fig.height=6,dpi=DPI,out.width= out.width,out.height=out.height----
+plot(res_cv_reg,which_sd_plot = c(5,7),ylim=c(0,1.1),
+     alpha.f = 0.4,plot_mean = T,legend_names = colnames(Y),
+     no_occurence = T)
 
-## ----message=FALSE,fig.width=7, fig.height=10,eval=F---------------------
-#  cross_valid <- perf_mddsPLS(Xs,Y,n_lambda = n_lambda,
-#                              R = 3,kfolds = "loo",NCORES = NCORES)
-#  plot(cross_valid,plot_mean = T)
+## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
+summary(res_cv_reg,plot_res_cv =F)
+
+## ------------------------------------------------------------------------
+data("liverToxicity")
+X <- scale(liverToxicity$gene)
+Y <- scale(liverToxicity$clinic)
+p1=p2 <- 1000
+p3 <- ncol(X)-p1-p2
+Xs <- list(Block1=X[,1:p1],Matrix2=X[,p1+1:p2],Other_Variables=X[,p1+p2+1:p3])
+Xs$Block1[1:10,] <- NA
+Xs$Matrix2[5+1:10,] <- NA
+Xs$Other_Variables[10+1:20,] <- NA
+
+model_multi_vizu <- mddsPLS(Xs,Y,lambda = 0.8,R = 3)
+
+## ----fig.height=8,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height----
+plot(model_multi_vizu,vizu = "weights",super = T,comp=1 ,addY = T,
+     mar_left = 5,mar_bottom = 3,reorder_Y = T)
+
+## ----dpi=DPI,out.width= out.width,out.height=out.height------------------
+plot(model_multi_vizu,vizu = "heatmap",comp = 1)
+
+## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
+summary(model_multi_vizu)
+
+## ------------------------------------------------------------------------
+model_multi_vizu$var_selected[[1]]
 

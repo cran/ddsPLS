@@ -2,27 +2,29 @@
 % Please edit documentation in R/predict.mddsPLS.R
 \name{predict.mddsPLS}
 \alias{predict.mddsPLS}
-\title{The predict function of a mdd-sPLS model}
+\title{The predict method associated to the \strong{mddsPLS} class.}
 \usage{
-\method{predict}{mddsPLS}(object, newdata, ...)
+\method{predict}{mddsPLS}(object, newdata, type = "y", ...)
 }
 \arguments{
 \item{object}{A mdd-sPLS object, output from the mddsPLS function.}
 
 \item{newdata}{A data-set where individuals are described by the same as for mod_0}
 
+\item{type}{charcter. It can be \strong{y} to return Y estimated value of \strong{x} for the completed values of newdata. \emph{both} for both \emph{y} and \emph{x}.}
+
 \item{...}{Other plotting parameters to affect the plot.}
 }
 \value{
-A matrix of estimated \emph{Y_test} values.
+Requested predicted values
 }
 \description{
-The predict function of a mdd-sPLS model
+The predict method associated to the \strong{mddsPLS} class.
 }
 \examples{
-data("liver.toxicity")
-X <- scale(liver.toxicity$gene)
-Y <- scale(liver.toxicity$clinic)
+data("liverToxicity")
+X <- scale(liverToxicity$gene)
+Y <- scale(liverToxicity$clinic)
 mod_0 <- mddsPLS(X,Y)
 Y_test <- predict(mod_0,X)
 }

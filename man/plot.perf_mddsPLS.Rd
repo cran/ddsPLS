@@ -4,17 +4,31 @@
 \alias{plot.perf_mddsPLS}
 \title{Function to plot cross-validation performance results.}
 \usage{
-\method{plot}{perf_mddsPLS}(x, plot_mean = FALSE, legend_names = NULL,
-  pos_legend = "bottomleft", ...)
+\method{plot}{perf_mddsPLS}(x, plot_mean = FALSE, reg_error = "MSEP",
+  legend_names = NULL, pos_legend = "bottomleft",
+  which_sd_plot = NULL, ylim = NULL, alpha.f = 0.4,
+  no_occurence = T, main = NULL, ...)
 }
 \arguments{
 \item{x}{The perf_mddsPLS object.}
 
 \item{plot_mean}{logical. Whether or not to plot the mean curve.}
 
+\item{reg_error}{character. One of "MSEP" (Mean Squared Error in Prediction) or "MPE" (Mean Prediction Error). Default is "MSEP".}
+
 \item{legend_names}{vector of characters. Each element is the name of one of the q response variables.}
 
 \item{pos_legend}{character. One of "bottomleft", "topright",....}
+
+\item{which_sd_plot}{vector of integers of length the number of columns in Y. Indicates which area of standard error must be drawn.}
+
+\item{ylim}{numeric vectors of length 2, giving the error plot range.}
+
+\item{alpha.f}{factor modifying the opacity alpha; typically in [0,1]. Used by \strong{adjustcolor}}
+
+\item{no_occurence}{logical. Whether or not to plot the occurence plot of the \strong{Y} variables. Initialized to \strong{TRUE}.}
+
+\item{main}{character of \strong{NULL}. If null the title is given to the willing of the software. If \strong{""}, no title is given. Else is what the user wants.}
 
 \item{...}{Other plotting parameters to affect the plot.}
 }
@@ -33,15 +47,18 @@ X <- penicilliumYES$X
 X <- scale(X[,which(apply(X,2,sd)>0)])
 Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),
 function(tt){rep(tt,12)})))
-#res_cv_class <- perf_mddsPLS(X,Y,lambda_min=0.85,n_lambda=2,R = 2,
-#mode = "clas",NCORES = 1,fold_fixed = rep(1:12,3))
+#res_cv_class <- perf_mddsPLS(X,Y,L0s=1:5,R = 2,
+#mode = "lda",NCORES = 1,fold_fixed = rep(1:12,3))
 #plot(res_cv_class)
 
 # Regression example :
-data("liver.toxicity")
-X <- scale(liver.toxicity$gene)
-Y <- scale(liver.toxicity$clinic)
-#res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,lambda_min=0.8,n_lambda=2,R = 1,
+data("liverToxicity")
+X <- scale(liverToxicity$gene)
+Y <- scale(liverToxicity$clinic)
+#res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,L0s=c(1,5,10,15,20),R = 1,
 # mode = "reg")
 #plot(res_cv_reg)
+}
+\seealso{
+\code{\link{perf_mddsPLS}}, \code{\link{summary.perf_mddsPLS}}
 }

@@ -15,6 +15,9 @@
 #'     for each subject and the serum enzymes levels are measured numerically.
 #'      The data were further normalized and pre-processed by Bushel \emph{et al.} (2007).
 #'
+#'@usage
+#'data(liverToxicity)
+#'
 #' @format A list containing the following components:
 #' \describe{
 #'   \item{gene}{data frame with \eqn{64} rows and \eqn{3116} columns. The
@@ -36,7 +39,8 @@
 #' }
 #'
 #' @importFrom Rdpack reprompt
-"liver.toxicity"
+#'
+"liverToxicity"
 
 #' Data set of three species of Penicillium fungi, from \emph{sparseLDA}
 #'

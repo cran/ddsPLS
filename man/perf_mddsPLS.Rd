@@ -5,15 +5,16 @@
 \title{Function to compute cross-validation performances.}
 \usage{
 perf_mddsPLS(Xs, Y, lambda_min = 0, lambda_max = NULL, n_lambda = 1,
-  lambdas = NULL, R = 1, kfolds = "loo", mode = "reg",
-  fold_fixed = NULL, maxIter_imput = 20, errMin_imput = 1e-09,
-  NCORES = 1)
+  lambdas = NULL, R = 1, reg_imp_model = TRUE, L0s = NULL,
+  kfolds = "loo", mode = "reg", fold_fixed = NULL,
+  maxIter_imput = 20, errMin_imput = 1e-09, NCORES = 1,
+  NZV = 1e-09, plot_result = T, legend_label = T)
 }
 \arguments{
 \item{Xs}{A matrix, if there is only one block, or a list of matrices,
-if there is more than one block, of \emph{n} rows each, the number of individuals.
+if there is more than one block, of \strong{n} rows each, the number of individuals.
  Some rows must be missing. The different matrices can have different numbers of columns.
-  The length of Xs is denoted by \emph{K}.}
+  The length of Xs is denoted by \strong{K}.}
 
 \item{Y}{A matrix of n rows of a vector of length n detailing the
 response matrix. No missing values are allowed in that matrix.}
@@ -23,7 +24,7 @@ Default is \eqn{0}.}
 
 \item{lambda_max}{A real in \eqn{[0,1]}. The maximum value considered.
 Default is \eqn{NULL}, interpreted to the largest correlation between
-\emph{X} and \emph{Y}.}
+\strong{X} and \strong{Y}.}
 
 \item{n_lambda}{A strictly positive integer. Default to \eqn{1}.}
 
@@ -33,13 +34,17 @@ perf process. Default is \eqn{NULL}, when that parameter is not taken into accou
 \item{R}{A strictly positive integer detailing the number of components to
 build in the model.}
 
-\item{kfolds}{character or integer. If equals to "loo" then a \emph{leave-one-out}
-cross-validation is started. No other character is understood. Any strictly
-positive integer gives the number of folds to make in the \emph{cross-validation process}}
+\item{reg_imp_model}{Logical. Whether or not to regularize the imputation models.
+Initialized to \code{TRUE}.}
 
-\item{mode}{A character chain. Possibilities are "\emph{reg}", which implies
-regression problem or anything else which means clustering is considered.
- Default is "\emph{reg}".}
+\item{L0s}{A vector of non null positive integers. The values tested by the
+perf process. Default is \eqn{NULL} and is then not taken into account.}
+
+\item{kfolds}{character or integer. If equals to "loo" then a \strong{leave-one-out}
+cross-validation is started. No other character is understood. Any strictly
+positive integer gives the number of folds to make in the \strong{cross-validation process}}
+
+\item{mode}{A character chain. Possibilities are "\strong{(reg,lda,logit)}", which implies regression problem, linear discriminant analysis (through the paclkage \code{MASS}, function \code{lda}) and logistic regression (function \code{glm}). Default is \strong{reg}.}
 
 \item{fold_fixed}{Vector of length \eqn{n}. Each element corresponds to the
 fold of the corresponding fold. If NULL then that argument is not considerd.
@@ -53,6 +58,12 @@ Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is
 Koh-Lanta algorithm. Default is \eqn{1e-9}.}
 
 \item{NCORES}{Integer. The number of cores. Default is \eqn{1}.}
+
+\item{NZV}{Float. The floatting value above which the weights are set to 0.}
+
+\item{plot_result}{Logical. Wether or not to plot the result. Initialized to \strong{TRUE}. The \strong{reg_error} argument of the \strong{plot.perf_mddsPLS} function is left to its default value.}
+
+\item{legend_label}{Logical. Wether or not to add the legend names to the plot. Initialized to \strong{TRUE}.}
 }
 \value{
 A result of the perf function
@@ -70,13 +81,16 @@ X <- penicilliumYES$X
 X <- scale(X[,which(apply(X,2,sd)>0)])
 Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),
 function(tt){rep(tt,12)})))
-#res_cv_class <- perf_mddsPLS(X,Y,lambda_min=0.85,n_lambda=2,R = 2,
-#mode = "clas",NCORES = 1,fold_fixed = rep(1:12,3))
+#res_cv_class <- perf_mddsPLS(X,Y,L0s=1:5,R = 2,
+#mode = "lda",NCORES = 1,fold_fixed = rep(1:12,3))
 
 # Regression example :
-data("liver.toxicity")
-X <- scale(liver.toxicity$gene)
-Y <- scale(liver.toxicity$clinic)
-#res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,lambda_min=0.8,n_lambda=2,R = 1,
+data("liverToxicity")
+X <- scale(liverToxicity$gene)
+Y <- scale(liverToxicity$clinic)
+#res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,L0s=c(1,5,10,25,50),R = 1,
 # mode = "reg")
+}
+\seealso{
+\code{\link{summary.perf_mddsPLS}}, \code{\link{plot.perf_mddsPLS}}, \code{\link{mddsPLS}}, \code{\link{predict.mddsPLS}},
 }
