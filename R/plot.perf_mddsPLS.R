@@ -58,7 +58,7 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,
   ## -----------------------------------
 
   res_perf_mdd <- x
-  is_L0 <- names(res_perf_mdd$RMSEP)[2]
+  is_L0 <- names(res_perf_mdd[[1]])[2]
   X_all <- scale(do.call(cbind,res_perf_mdd$Xs))
   if(res_perf_mdd$mode=="reg"){
     if(reg_error=="MPE"){
@@ -282,6 +282,7 @@ plot.perf_mddsPLS <- function(x,plot_mean=FALSE,
     # col=grDevices::adjustcolor("black",alpha.f = 0.2),
     # lty=1,lwd=4)
   }
+
   if(is_L0!="L0s"){
     y_card <- card_ranges*diff(range(y1))/diff(range(card_ranges))
     y_card <- y_card - min(y_card) + min(y1)

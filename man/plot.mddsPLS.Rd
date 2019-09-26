@@ -6,14 +6,15 @@
 \usage{
 \method{plot}{mddsPLS}(x, vizu = "weights", super = FALSE,
   addY = FALSE, block = NULL, comp = NULL, variance = "Linear",
-  mar_left = 2, mar_bottom = 2, pos_legend = "topright",
-  legend_names = NULL, legend.cex = 1, values_corr = F,
-  block_Y_name = "Y", alpha.Y_sel = 0.4, reorder_Y = F, ...)
+  mar_left = 2, mar_bottom = 2, margins_heatmap = c(5, 5),
+  pos_legend = "topright", legend_names = NULL, legend.cex = 1,
+  values_corr = F, block_Y_name = "Y", alpha.Y_sel = 0.4,
+  reorder_Y = F, ...)
 }
 \arguments{
 \item{x}{The perf_mddsPLS object.}
 
-\item{vizu}{character. One of \strong{weights}, \strong{coeffs}, \strong{heatmap}, \strong{correlogram}. \strong{coeffs} does not work in the case of classification (\strong{lda} or \strong{logit})}
+\item{vizu}{character. One of \strong{weights}, \strong{coeffs}, \strong{heatmap}, \strong{correlogram}. \strong{coeffs} does not work in the case of classification (\strong{lda} or \strong{logit}). If \strong{heatmap} is selected, light colors correspond to low expressions.}
 
 \item{super}{logical. If \strong{TRUE} barplots are filled with **Super-Weights** in the case of \strong{vizu=weights} of with général **X** and **Y** components else.}
 
@@ -28,6 +29,8 @@
 \item{mar_left}{positive float. Extra lines to add to the left margins, where the variable names are written.}
 
 \item{mar_bottom}{positive float. Extra lines to add to the bottom margins. Useful when \strong{addY}=TRUE.}
+
+\item{margins_heatmap}{vector of 2 positive floats. The \strong{margins} argument of the \strong{heatmap} function. Margins to the bottom and to the right of the heatmap, if plotted. Useful if samples and covariates have particularly long names. Default to c(5,5).}
 
 \item{pos_legend}{Initialized to "topright". If equals NULL, then no legend is given.}
 
@@ -50,7 +53,11 @@ The plot visualisation
 }
 \description{
 That function must be applied to a \strong{mddsPLS} object. Extra parameters are
- avalaible to control the plot quality.
+ avalaible to control the plot quality. Keep in mind that if a lot of covariates
+ are selected, their names might not all fit the plot window, only the names of
+ the most important covariates are present. To provide the names of all the
+ covariates, the user can modify concerned parameters of the \strong{barplot}
+ function (for example the \emph{cex.names} parameter).
 }
 \examples{
 library(doParallel)
@@ -67,8 +74,9 @@ function(tt){rep(tt,12)})))
 data("liverToxicity")
 X <- scale(liverToxicity$gene)
 Y <- scale(liverToxicity$clinic)
-# res_cv_reg <- ddsPLS(Xs = X,Y = Y,L0=10,R = 2)
-# plot(res_cv_reg)
+# mod_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 2)
+# plot(mod_reg,addY = T,mar_left = 3)
+# plot(mod_reg,addY = T,mar_left = 3,super = T)
 }
 \seealso{
 \code{\link{mddsPLS}}, \code{\link{summary.mddsPLS}}

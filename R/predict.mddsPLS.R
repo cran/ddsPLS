@@ -5,7 +5,7 @@
 #' @param type charcter. It can be \strong{y} to return Y estimated value of \strong{x} for the completed values of newdata. \emph{both} for both \emph{y} and \emph{x}.
 #' @param ... Other plotting parameters to affect the plot.
 #'
-#' @return Requested predicted values
+#' @return Requested predicted values. In the case of classification, object \emph{probY} gives the probability per individual and per class.
 #'
 #' @importFrom stats predict
 #'
@@ -85,7 +85,7 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
         }
       }
       ## Estimate missing values
-      res <- predict.mddsPLS(model_impute_test,t_X_test)
+      res <- predict.mddsPLS(model_impute_test,t_X_test)$y
       ## Put results inside Xs
       C_pos <- 1
       for(k_id in 1:length(pos_no_ok)){
@@ -145,6 +145,7 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
       }
     }
     if(mode=="reg"){
+      probability <- NULL
       newY <- matrix(0,n_new,q)
       for(k in 1:K){
         newY <- newY + newX[[k]]%*%mod$B[[k]]
@@ -154,17 +155,6 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
       }
     }
     else{
-      #t_r_new <- list()
-      # for(k in 1:K){
-      #   if(k==1){
-      #     for(r in 1:R){
-      #       t_r_new[[r]] <- matrix(NA,n_new,K)
-      #     }
-      #   }
-      #   for(r in 1:R){
-      #     t_r_new[[r]][,k] <- newX[[k]]%*%mod_0$mod$u_t_super#u[[k]][,r]
-      #   }
-      # }
       T_super_new <- matrix(0,nrow=n_new,ncol=R)
       for(k in 1:K){
         T_super_new <- T_super_new + newX[[k]]%*%mod_0$mod$u_t_super[[k]]
@@ -173,6 +163,8 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
       df_new <- data.frame(T_super_new)# df_new <- data.frame(do.call(cbind,T_super_new))#%*%mod_0$mod$beta_comb)
       colnames(df_new) <- paste("X",2:(ncol(df_new)+1),sep="")
       if(mod_0$mode=="lda"){
+        probability <- rep(0,nlevels(Y_0))
+        names(probability) <- levels(Y_0)
         if(class(mod_0$mod$B)=="list"){
           colnames(df_new) <- colnames(mod_0$mod$B$B$means)
         }else{
@@ -184,13 +176,19 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
         }
         else if(!is.null(mod_0$mod$B$sds)){
           pos_sds_no_0 <- which(mod_0$mod$B$sds!=0)
-          newY <- predict(mod_0$mod$B$B,df_new[,pos_sds_no_0,drop=F])$'class'
+          prediction <- predict(mod_0$mod$B$B,df_new[,pos_sds_no_0,drop=F])
+          newY <- prediction$'class'
+          probability <- prediction$posterior
         }
         else{
-          newY <- predict(mod_0$mod$B,df_new)$'class'
+          prediction <- predict(mod_0$mod$B,df_new)
+          newY <- prediction$'class'
+          probability <- prediction$posterior
         }
       }
       else if(mod_0$mode=="logit"){
+        probability <- rep(0,nlevels(Y_0))
+        names(probability) <- levels(Y_0)
         if(is.null(mod_0$mod$B)){
           newY <- list(class=sample(1:nlevels(mod_0$Y_0),size = 1,
                                     prob = table(mod_0$Y_0)/sum(table(mod_0$Y_0))))$'class'
@@ -198,6 +196,9 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
         else{
           colnames(df_new) <- names(mod_0$mod$B$coefficients)[-1]
           newY <- predict(mod_0$mod$B,df_new)
+          prob <- suppressWarnings(predict(mod_0$mod$B,df_new,type="response"))
+          probability <- c(1-prob,prob)
+          names(probability) <- levels(Y_0)
           if(newY<0){
             newY <- levels(mod_0$Y_0)[1]
           }else{
@@ -214,8 +215,11 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
   else{
     if(mod_0$mode=="reg"){
       newY <- matrix(NA,n_new,q)
+      probability <- NULL
     }else{
       newY <- rep(NA,n_new)
+      probability <- matrix(0,n_new,nlevels(mod_0$Y_0))
+      colnames(probability) <- levels(mod_0$Y_0)
     }
     for(i_new in 1:n_new){
       # Solved by Soso
@@ -227,6 +231,13 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
         newY[i_new,] <- RES$y
       }else{
         newY[i_new] <- as.character(RES$y)
+        pro_i <- RES$probY
+        for(jj in 1:length(pro_i)){
+          n_i_jj <- names(pro_i)[jj]
+          if(is.null(n_i_jj)) n_i_jj <- colnames(pro_i)[jj]
+          pos_i_jj <- which(colnames(probability)==n_i_jj)
+          probability[i_new,pos_i_jj] <- pro_i[jj]
+        }
       }
       if(type=="x"|type=="both"){
         for(k in 1:length(newX)){
@@ -238,11 +249,11 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
     }
   }
   if(type=="y"){
-    out <- newY
+    out <- list(y=newY,probY=probability)
   }else if(type=="x"){
     out <- newX
   }else{
-    out <- list(x=newX,y=newY)
+    out <- list(x=newX,y=newY,probY=probability)
   }
   out
 }

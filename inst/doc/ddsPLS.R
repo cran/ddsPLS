@@ -1,7 +1,8 @@
 ## ----include=FALSE-------------------------------------------------------
-DPI=30
+DPI=300
 out.width="1000px"
 out.height="1000px"
+out.height_2="500px"
 library(htmltools)
 tagList(rmarkdown::html_dependency_font_awesome())
 
@@ -40,7 +41,7 @@ plot(mddsPLS_model_reg,vizu = "weights",variance = "Linear",
      super = T,comp = c(1,2),addY = T,mar_left = 3,mar_bottom = 3,
      pos_legend = "topright",reorder_Y = T,legend.cex = 1.5)
 
-## ----fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height----
+## ----fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height_2----
 plot(mddsPLS_model_reg,vizu = "heatmap",comp = 1)
 
 ## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
@@ -96,11 +97,11 @@ Xs$Other_Variables[10+1:20,] <- NA
 
 model_multi_vizu <- mddsPLS(Xs,Y,lambda = 0.8,R = 3)
 
-## ----fig.height=8,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height----
+## ----fig.height=10,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height_2----
 plot(model_multi_vizu,vizu = "weights",super = T,comp=1 ,addY = T,
      mar_left = 5,mar_bottom = 3,reorder_Y = T)
 
-## ----dpi=DPI,out.width= out.width,out.height=out.height------------------
+## ----dpi=DPI,out.width= out.width,out.height=out.height_2----------------
 plot(model_multi_vizu,vizu = "heatmap",comp = 1)
 
 ## ---- fig.show='hold',message=FALSE,eval=T-------------------------------

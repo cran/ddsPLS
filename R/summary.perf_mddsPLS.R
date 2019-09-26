@@ -29,11 +29,21 @@
 summary.perf_mddsPLS <- function (object,plot_res_cv=T,
                                   ...)
 {
+  if(object$mode!="reg"){
+    names(object)[which(names(object)=="ERROR")] <- "RMSEP"
+  }
   is_L0 <- names(object$RMSEP)[2]
   K <- length(object$Xs);    sent_K <- paste("Number of blocks:",K)
   n <- nrow(object$Xs[[1]]);    sent_n <- paste("Number of individuals:",n)
-  kfolds <- object$kfolds
-  if(kfolds=="loo"){
+  kfolds <- length(unique(object$fold))
+  if(kfolds==0){
+    if(object$kfolds=="loo"){
+      kfolds <- n
+    }else{
+      kfolds <- object$kfolds
+    }
+  }
+  if(kfolds==n){
     sent_kfolds <- "Performed Leave-One-Out cross-validation"
   }else{
     sent_kfolds <- paste("Performed ",kfolds,"-fold cross-validation",sep="")
@@ -64,15 +74,13 @@ summary.perf_mddsPLS <- function (object,plot_res_cv=T,
   for(k in 1:K){popo <- as.numeric(object$id_na[[k]]);if(length(popo)>0){df_miss[popo,k]<-0};
   df_miss[,k] <- factor(df_miss[,k],levels = c(0,1))}
   names(df_miss) <- names_X_block
-  q <- ncol(object$Y_0); if(is.null(q)){q <- length(object$Y_0)};    sent_q <- paste("Number of variables in Y part:",q)
+  q <- ncol(object$RMSEP)-2; sent_q <- paste("Number of variables in Y part:",q)
   mode <- object$mode;if(mode=="reg"){
     mode <- "regression"
   }else{
     mode <- "classification"
   }
   sent_mode <- paste("Model built in mode",mode)
-
-
   FREQ <- object$FREQ
   Conv <- object$Conv
   time <- object$time

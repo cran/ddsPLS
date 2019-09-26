@@ -33,6 +33,7 @@ summary.mddsPLS <- function (object,
                              fontsize=10,alpha=0.7,
                              ...)
 {
+  NZV <- object$NZV
   K <- length(object$Xs);    sent_K <- paste("Number of blocks:",K)
   R <- object$mod$R;    sent_R <- paste("Number of dimensions:",R)
   if(!is.null(object$L0)){
@@ -81,7 +82,7 @@ summary.mddsPLS <- function (object,
   colnames(df_num_var_sel) <- paste("Super Comp.",1:R)
   for(r in 1:R){
     for(k in 1:K){
-      df_num_var_sel[k,r] <- length(which(abs(object$mod$u_t_super[[k]][,r])>1e-9))
+      df_num_var_sel[k,r] <- length(which(abs(object$mod$u_t_super[[k]][,r])>NZV))
     }
   }
 
@@ -149,12 +150,12 @@ summary.mddsPLS <- function (object,
   cat(paste("At most ",N_max," variable(s) can be selected in the X part",sep=""));cat("\n")
   cat("\n")
   cat("\n")
-  a<-lapply(object$mod$u,function(u){apply(u,2,function(u){length(which(abs(u)>1e-9))})})
+  a<-lapply(object$mod$u,function(u){apply(u,2,function(u){length(which(abs(u)>NZV))})})
   cat(" ---- For each block of X, are selected");cat("\n")
   print(df_num_var_sel)
   if(mode=="regression"){
     cat(" ---- For the Y block, are selected");cat("\n")
-    cat(paste("        @ (",paste(apply(object$mod$V_super,2,function(u){length(which(abs(u)>1e-9))}),
+    cat(paste("        @ (",paste(apply(object$mod$V_super,2,function(u){length(which(abs(u)>NZV))}),
                                   collapse = ","),") variable(s)",sep=""));cat("\n")
   }
   cat("\n")

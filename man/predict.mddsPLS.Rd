@@ -16,7 +16,7 @@
 \item{...}{Other plotting parameters to affect the plot.}
 }
 \value{
-Requested predicted values
+Requested predicted values. In the case of classification, object \emph{probY} gives the probability per individual and per class.
 }
 \description{
 The predict method associated to the \strong{mddsPLS} class.

@@ -8,17 +8,20 @@ output:
     theme: yeti
     toc: yes
     toc_float: yes
+  pdf_document:
+    toc: yes
 bibliography: bib.bib
-vignette: |
-  %\VignetteIndexEntry{Mono and Multi-block Data-Driven sparse PLS (mdd-sPLS)}        
-  %\VignetteEncoding{UTF-8}{inputenc}
+vignette: >
   %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{ddsPLS : A Package to Deal with Multi-Block Supervised Problems with Missing Samples in High Dimension}
+  %\usepackage[utf8]{inputenc}
 ---
 
 ```{r,include=FALSE}
-DPI=30
+DPI=300
 out.width="1000px"
 out.height="1000px"
+out.height_2="500px"
 library(htmltools)
 tagList(rmarkdown::html_dependency_font_awesome())
 ```
@@ -133,7 +136,7 @@ plot(mddsPLS_model_reg,vizu = "weights",variance = "Linear",
 
 Heatmap permit to appreciate the discriminative aspect of variables according to their individual representations. It has been decided to plot heatmaps component per component, only the first one here
 
-```{r,fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height}
+```{r,fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height_2}
 plot(mddsPLS_model_reg,vizu = "heatmap",comp = 1)
 ```
 
@@ -432,7 +435,7 @@ The following sections detailed the discussed method though those parametization
 
 The following figure permits to represent the *scaled super-weights* for blocks 1, 2 and block Y. **mar_left** parameter adds extra values on the left of the plot, usefull to see variable names. Only the first cuper-component is plotted.
 
-```{r,fig.height=8,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height}
+```{r,fig.height=10,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height_2}
 plot(model_multi_vizu,vizu = "weights",super = T,comp=1 ,addY = T,
      mar_left = 5,mar_bottom = 3,reorder_Y = T)
 ```
@@ -456,7 +459,7 @@ Heatmap permit to appreciate the discriminative aspect of variables according to
 
 Each variable has been normalized separately. Dendrogram are used in the individual and in the variable directions using **hclust** similarities.
 
-```{r,dpi=DPI,out.width= out.width,out.height=out.height}
+```{r,dpi=DPI,out.width= out.width,out.height=out.height_2}
 plot(model_multi_vizu,vizu = "heatmap",comp = 1)
 ```
 

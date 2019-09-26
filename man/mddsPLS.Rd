@@ -30,11 +30,11 @@ mddsPLS(Xs, Y, lambda = 0, R = 1, mode = "reg", L0 = NULL,
 
 \item{maxIter_imput}{Positive integer. Maximal number of iterations in the Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is  considered. Default is \eqn{5}.}
 
-\item{verbose}{Logical. If TRUE, the function cats specificities about the model. Default is FALSE.}
+\item{verbose}{Logical. If TRUE, the convergence progress of the Koh-Lanta algorithm is reported. Default is FALSE.}
 
 \item{NZV}{Float. The floatting value above which the weights are set to 0.}
 
-\item{getVariances}{Logical. Whether or not to compute variances.}
+\item{getVariances}{Logical. Whether or not to compute variances. Default is \emph{TRUE}.}
 }
 \value{
 A list containing a mddsPLS object, see \code{\link{MddsPLS_core}}. The \code{list} \code{order_values} is filled with the selected genes in each block.

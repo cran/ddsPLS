@@ -349,7 +349,7 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",
               dataf$Y <- dataf$Y - 1
             }
           }
-          B <- glm(Y ~ ., data = dataf,family = "binomial")
+          B <- suppressWarnings(glm(Y ~ ., data = dataf,family = "binomial"))
         }
       }
     }
@@ -360,7 +360,7 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",
         if(!is.factor(dataf$Y)){
           dataf$Y <- factor(dataf$Y)
         }
-        B <- glm(Y ~ ., data = dataf,family = "binomial")
+        B <- suppressWarnings(glm(Y ~ ., data = dataf,family = "binomial"))
       }
     }
   }
@@ -399,9 +399,9 @@ MddsPLS_core <- function(Xs,Y,lambda=0,R=1,mode="reg",
 #' @param mode A character chain. Possibilities are "\strong{(reg,lda,logit)}", which implies regression problem, linear discriminant analysis (through the paclkage \code{MASS}, function \code{lda}) and logistic regression (function \code{glm}). Default is \strong{reg}.
 #' @param errMin_imput Positive real. Minimal error in the Tribe Stage of the Koh-Lanta algorithm. Default is \eqn{1e-9}.
 #' @param maxIter_imput Positive integer. Maximal number of iterations in the Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is  considered. Default is \eqn{5}.
-#' @param verbose Logical. If TRUE, the function cats specificities about the model. Default is FALSE.
+#' @param verbose Logical. If TRUE, the convergence progress of the Koh-Lanta algorithm is reported. Default is FALSE.
 #' @param NZV Float. The floatting value above which the weights are set to 0.
-#' @param getVariances Logical. Whether or not to compute variances.
+#' @param getVariances Logical. Whether or not to compute variances. Default is \emph{TRUE}.
 #'
 #' @return A list containing a mddsPLS object, see \code{\link{MddsPLS_core}}. The \code{list} \code{order_values} is filled with the selected genes in each block.
 #' They are oredered according to the sum of the square values of the \strong{Super-Weights} along the \code{R} dimensions.
@@ -480,9 +480,23 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",L0=NULL,
     scaleRcpp(a)
   }
 
-  get_variances <- function(x,std_Y=T){
-    get_var_line <- function(x,y){
-      numer <- norm(mmultC(x,mmultC(solve(crossprod(x)),crossprod(x,y))),"f")
+  get_variances <- function(x,std_Y=T,NZV=1e-9){
+    get_var_line <- function(x,y,NZV=1e-9){
+      coX <- colSums(x)
+      if(any(is.na(coX))){
+        x[,which(is.na(coX))] <- 0
+      }
+      sigmaX <- crossprod(x)
+      model_svd <- svd(sigmaX)
+      if(min(model_svd$d)<NZV){
+        D_plus <- model_svd$d
+        D_plus[which(D_plus>NZV)] <- 1/D_plus[which(D_plus>NZV)]
+        D_plus[-which(D_plus>NZV)] <- 0
+        sigmaX_plus <- mmultC(model_svd$v,mmultC(diag(D_plus),t(model_svd$u)))
+      }else{
+        sigmaX_plus <- solve(sigmaX)
+      }
+      numer <- norm(mmultC(x,mmultC(sigmaX_plus,crossprod(x,y))),"f")
       denom <- norm(y,"f")
       numer/denom
     }
@@ -495,7 +509,7 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",L0=NULL,
     Xs <- x$Xs
     K <- length(Xs)
     y_obs <- x$Y_0
-    y_pred <- predict(x,Xs)
+    y_pred <- predict(x,Xs)$y
     mode <- x$mode
     if(mode=="reg"){
       if(!is.matrix(y_obs)&!is.data.frame(y_obs)){
@@ -671,7 +685,7 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",L0=NULL,
     sd_y <- sdRcpp(Y_class_dummies)#apply(Y_class_dummies,2,sd)*sqrt((n-1)/n)
   }
   if(length(unlist(id_na))==0){
-    ## If ther is no missing sample
+    ## If there is no missing sample
     mod <- MddsPLS_core(Xs,Y,lambda=lambda,R=R,mode=mode,L0=L0,verbose=verbose,NZV=NZV)
   }else{
     if(!is.null(L0)){
@@ -702,7 +716,7 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",L0=NULL,
           x_test <- Y[id_na[[k]],,drop=F]
         }
         model_init <- mddsPLS(x_train,y_train,R=R,lambda = lambda_init,getVariances=F)
-        y_test <- predict(model_init,x_test)
+        y_test <- predict(model_init,x_test)$y
         Xs[[k]][id_na[[k]],] <- y_test
       }
     }
@@ -774,7 +788,7 @@ mddsPLS <- function(Xs,Y,lambda=0,R=1,mode="reg",L0=NULL,
                   mod_i_k$Y_0 <- Y_i_k
                   model_imputations[[k]] <- mod_i_k
                 }
-                Xs[[k]][i_k,Var_selected_k] <- predict.mddsPLS(mod_i_k,newX_i)
+                Xs[[k]][i_k,Var_selected_k] <- predict.mddsPLS(mod_i_k,newX_i)$y
               }else{
                 if(keep_imp_mod){
                   model_imputations[[k]] <- list()
