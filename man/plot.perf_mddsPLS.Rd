@@ -7,7 +7,7 @@
 \method{plot}{perf_mddsPLS}(x, plot_mean = FALSE, reg_error = "MSEP",
   legend_names = NULL, pos_legend = "bottomleft",
   which_sd_plot = NULL, ylim = NULL, alpha.f = 0.4,
-  no_occurence = T, main = NULL, ...)
+  no_occurence = T, main = NULL, no_plot = F, ...)
 }
 \arguments{
 \item{x}{The perf_mddsPLS object.}
@@ -29,6 +29,8 @@
 \item{no_occurence}{logical. Whether or not to plot the occurence plot of the \strong{Y} variables. Initialized to \strong{TRUE}.}
 
 \item{main}{character of \strong{NULL}. If null the title is given to the willing of the software. If \strong{""}, no title is given. Else is what the user wants.}
+
+\item{no_plot}{logical. Whether or not to plot error. Initialized to \strong{FALSE}.}
 
 \item{...}{Other plotting parameters to affect the plot.}
 }

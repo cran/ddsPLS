@@ -27,14 +27,14 @@ library(ddsPLS)
 #  Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
 #  Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
 #  
-#  mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda",verbose = TRUE)
+#  mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda")
 
 ## ---- fig.show='hold',message=FALSE,eval=T-------------------------------
 data("liverToxicity")
 X <- scale(liverToxicity$gene)
 Y <- scale(liverToxicity$clinic)
 mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 3,
-                             mode = "reg",verbose = TRUE)
+                             mode = "reg")
 
 ## ----fig.height=10,fig.width=10,echo=T,dpi=DPI,out.width= out.width,out.height=out.height----
 plot(mddsPLS_model_reg,vizu = "weights",variance = "Linear",

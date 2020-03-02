@@ -85,7 +85,7 @@ Xs <- list(X[,1:1000],X[,-(1:1000)])
 Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
 Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
 
-mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda",verbose = TRUE)
+mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda")
 ```
 
 is considered a mult-block classification case analysis with missing samples. **mode="lda"** is used since there are 3 classes to discriminate.
@@ -103,14 +103,14 @@ The regression case has been treated through a toy example well know dataset in 
 We have worked on the Liver Toxicity dataset [see @bushel2007simultaneous]. This data set contains the expression measure of 3116 genes and 10 clinical measurements for 64 subjects (rats) that were exposed to non-toxic, moderately toxic or severely toxic doses of acetaminophen in a controlled experiment. Therefore the structure is :
 $$\mathbf{X}\in\mathbb{R}^{64\times3116},\mathbf{Y}\in\mathbb{R}^{64\times10}$$
 
-The following commands permit to create the model. The parameter *verbose* shows main information about the model.
+The following commands permit to create the model.
 
 ```{r, fig.show='hold',message=FALSE,eval=T}
 data("liverToxicity")
 X <- scale(liverToxicity$gene)
 Y <- scale(liverToxicity$clinic)
 mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 3,
-                             mode = "reg",verbose = TRUE)
+                             mode = "reg")
 ```
 
 #### Plot Method {.tabset}

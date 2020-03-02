@@ -5,9 +5,8 @@
 \title{Multi-Data-Driven sparse PLS function.}
 \usage{
 mddsPLS(Xs, Y, lambda = 0, R = 1, mode = "reg", L0 = NULL,
-  keep_imp_mod = FALSE, reg_imp_model = TRUE, errMin_imput = 1e-09,
-  maxIter_imput = 50, verbose = FALSE, NZV = 1e-09,
-  getVariances = TRUE)
+  mu = NULL, deflat = FALSE, weight = FALSE, keep_imp_mod = FALSE,
+  NZV = 1e-09, getVariances = TRUE)
 }
 \arguments{
 \item{Xs}{A matrix, if there is only one block, or a list of matrices,, if there is more than one block, of \strong{n} rows each, the number of individuals. Some rows must be missing. The different matrices can have different numbers of columns. The length of Xs is denoted by \strong{K}.}
@@ -22,15 +21,13 @@ mddsPLS(Xs, Y, lambda = 0, R = 1, mode = "reg", L0 = NULL,
 
 \item{L0}{An integer non nul parameter giving the largest number of X variables that can be selected.}
 
+\item{mu}{A real positive. The Ridge parameter changing the bias of the regression model. If is NULL, consider the classical ddsPLS. Default to NULL.}
+
+\item{deflat}{Logical. If TRUE, the solution uses deflations to construct the weights.}
+
+\item{weight}{Logical. If TRUE, the scores are divided by the number of selected variables of their corresponding block.}
+
 \item{keep_imp_mod}{Logical. Whether or not to keep imputation \strong{mddsPLS} models. Initialized to \code{FALSE} due to the potential size of those models.}
-
-\item{reg_imp_model}{Logical. Whether or not to regularize the imputation models. Initialized to \code{TRUE}.}
-
-\item{errMin_imput}{Positive real. Minimal error in the Tribe Stage of the Koh-Lanta algorithm. Default is \eqn{1e-9}.}
-
-\item{maxIter_imput}{Positive integer. Maximal number of iterations in the Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is  considered. Default is \eqn{5}.}
-
-\item{verbose}{Logical. If TRUE, the convergence progress of the Koh-Lanta algorithm is reported. Default is FALSE.}
 
 \item{NZV}{Float. The floatting value above which the weights are set to 0.}
 
@@ -62,14 +59,14 @@ data("penicilliumYES")
 X <- penicilliumYES$X
 X <- scale(X[,which(apply(X,2,sd)>0)])
 Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
-# mddsPLS_model_class <- mddsPLS(Xs = X,Y = Y,R = 2,L0=3,mode = "lda",verbose = TRUE)
+# mddsPLS_model_class <- mddsPLS(Xs = X,Y = Y,R = 2,L0=3,mode = "lda")
 # summary(mddsPLS_model_class,plot_present_indiv = FALSE)
 
 ## Regression example :
 data("liverToxicity")
 X <- scale(liverToxicity$gene)
 Y <- scale(liverToxicity$clinic)
-#mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 1, mode = "reg",verbose = TRUE)
+#mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 1, mode = "reg")
 #summary(mddsPLS_model_reg)
 
 # Multi-block example :
@@ -80,7 +77,7 @@ X <- scale(X[,which(apply(X,2,sd)>0)])
 Xs <- list(X[,1:1000],X[,-(1:1000)])
 Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
 Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
-#mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,mode = "lda",R = 2,verbose = TRUE)
+#mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,mode = "lda",R = 2)
 #summary(mddsPLS_model_class)
 
 ## Regression example :
@@ -89,7 +86,7 @@ X <- scale(liverToxicity$gene)
 Xs <- list(X[,1:1910],X[,-(1:1910)])
 Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
 Y <- scale(liverToxicity$clinic)
-#mddsPLS_model_reg <- mddsPLS(Xs = Xs,Y = Y,lambda=0.9,R = 1, mode = "reg",verbose = TRUE)
+#mddsPLS_model_reg <- mddsPLS(Xs = Xs,Y = Y,lambda=0.9,R = 1, mode = "reg")
 #summary(mddsPLS_model_reg)
 }
 \references{

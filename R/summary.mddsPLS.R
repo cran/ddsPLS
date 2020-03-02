@@ -73,9 +73,8 @@ summary.mddsPLS <- function (object,
   sent_q <- paste("Number of variables in Y part:",q)
   mode <- object$mode;if(mode=="reg"){mode <- "regression"}else{mode <- "classification"}
   sent_mode <- paste("Model built in mode",mode)
-  maxit <- object$maxIter_imput;    sent_maxit <- paste("Maximum number of iterations in the imputation process:",maxit)
-  has_con <- object$has_converged!=0;if(has_con){sent_con <- ""}else{sent_con <- " not"}
-  sent_con <- paste("Algorithm of imputation has",sent_con," converged",sep="")
+  number_its <- object$number_iterations
+  sent_its <- paste("Koh-Lanta process realized in",number_its,"iterations")
 
   df_num_var_sel <- data.frame(matrix(NA,K,R))
   rownames(df_num_var_sel) <- names_X_block
@@ -97,8 +96,7 @@ summary.mddsPLS <- function (object,
   cat(sent_n);cat("\n")
   cat(sent_q);cat("\n")
   cat(sent_mode);cat("\n")
-  cat(sent_maxit);cat("\n")
-  cat(sent_con);cat("\n")
+  cat(sent_its);cat("\n")
   cat("\n")
   cat("\n")
   if(mode=="regression"){
@@ -160,9 +158,6 @@ summary.mddsPLS <- function (object,
   }
   cat("\n")
   cat("\n")
-  cat("                 Thank's for using me      ");cat("\n")
   cat("---------------------------------------------------------------");cat("\n")
-  cat("                                                Hadrien Lorenzo");cat("\n")
-  cat("                                 hadrien.lorenzo.2015@gmail.com");cat("\n")
   cat("===============================================================");cat("\n")
 }

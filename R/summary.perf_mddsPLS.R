@@ -97,7 +97,7 @@ summary.perf_mddsPLS <- function (object,plot_res_cv=T,
     lambda <- MAT_FINAL_RES$lambda[i]
     id <- which(Conv[1]==r&Conv[2]==lambda )
     ## Convergence
-    num_conv <- Conv$has_converged[id]
+    num_conv <- Conv$number_iterations[id]
     num_conv <- paste(sum(num_conv!=0),kfolds,sep="/")
     MAT_FINAL_RES$`Nb of convergences VS nb of fold`[i] <- num_conv
     ## Time of computation
@@ -128,12 +128,10 @@ summary.perf_mddsPLS <- function (object,plot_res_cv=T,
   cat("---------------------------------");cat("\n")
   cat("\n")
   colnames(MAT_FINAL_RES)[4] <- "Mean AND sd time of computation"
-  print(data.frame(MAT_FINAL_RES));cat("\n")
+  print(data.frame(MAT_FINAL_RES))
   cat("\n")
-  cat("                  Thank's for using me      ");cat("\n")
+  cat("\n")
   cat("------------------------------------------------------");cat("\n")
-  cat("                                       Hadrien Lorenzo");cat("\n")
-  cat("                        hadrien.lorenzo.2015@gmail.com");cat("\n")
   cat("======================================================");cat("\n")
   if(plot_res_cv){
     plot(object)

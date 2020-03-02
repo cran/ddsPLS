@@ -60,7 +60,7 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
       }
       ## Generate model
       model_impute_test <- mddsPLS(t_X_here,vars_Y_here,lambda = lambda,
-                                   R = R,maxIter_imput = mod_0$maxIter_imput,
+                                   R = R,
                                    NZV=mod_0$NZV)
       ## Create test dataset
       n_test <- nrow(X_test[[1]])
@@ -116,7 +116,7 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
     K <- length(newX)
     id_na_test <- unlist(lapply(newX,function(x){anyNA(x)}))
     if(any(id_na_test)){
-      if(K>1 & mod_0$maxIter_imput>0){
+      if(K>1){ ###  & mod_0$maxIter_imput>0
         newX <- fill_X_test(mod_0,newX)
       }
       else{
@@ -151,15 +151,14 @@ predict.mddsPLS  <- function(object,newdata,type="y",...){
         newY <- newY + newX[[k]]%*%mod$B[[k]]
       }
       for(i in 1:n_new){
-        newY[i,]<-newY[i,]*sd_y+mu_y
+        newY[i,]<-newY[i,] + mu_y
       }
     }
     else{
-      T_super_new <- matrix(0,nrow=n_new,ncol=R)
+      T_super_new <- matrix(0,nrow=n_new,ncol=ncol(mod$T_super))
       for(k in 1:K){
-        T_super_new <- T_super_new + newX[[k]]%*%mod_0$mod$u_t_super[[k]]
+          T_super_new <- T_super_new + newX[[k]]%*%mod_0$mod$u_t_super[[k]]
       }
-
       df_new <- data.frame(T_super_new)# df_new <- data.frame(do.call(cbind,T_super_new))#%*%mod_0$mod$beta_comb)
       colnames(df_new) <- paste("X",2:(ncol(df_new)+1),sep="")
       if(mod_0$mode=="lda"){

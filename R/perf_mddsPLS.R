@@ -20,10 +20,11 @@
 #' perf process. Default is \eqn{NULL}, when that parameter is not taken into account.
 #' @param L0s A vector of non null positive integers. The values tested by the
 #' perf process. Default is \eqn{NULL} and is then not taken into account.
+#' @param mu A real positive. The Ridge parameter changing the bias of the regression model. If is NULL, consider the classical ddsPLS. Default to NULL.
 #' @param R A strictly positive integer detailing the number of components to
 #' build in the model.
-#' @param reg_imp_model Logical. Whether or not to regularize the imputation models.
-#' Initialized to \code{TRUE}.
+#' @param deflat Logical. If TRUE, the solution uses deflations to construct the weights.
+#' @param weight Logical. If TRUE, the scores are divided by the number of selected variables of their corresponding block.
 #' @param kfolds character or integer. If equals to "loo" then a \strong{leave-one-out}
 #' cross-validation is started. No other character is understood. Any strictly
 #' positive integer gives the number of folds to make in the \strong{cross-validation process}
@@ -31,11 +32,6 @@
 #' @param fold_fixed Vector of length \eqn{n}. Each element corresponds to the
 #' fold of the corresponding fold. If NULL then that argument is not considerd.
 #' Default to NULL.
-#' @param errMin_imput Positive real. Minimal error in the Tribe Stage of the
-#' Koh-Lanta algorithm. Default is \eqn{1e-9}.
-#' @param maxIter_imput Positive integer. Maximal number of iterations in the
-#' Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is
-#'  considered. Default is \eqn{5}.
 #' @param NCORES Integer. The number of cores. Default is \eqn{1}.
 #' @param NZV Float. The floatting value above which the weights are set to 0.
 #' @param plot_result Logical. Wether or not to plot the result. Initialized to \strong{TRUE}. The \strong{reg_error} argument of the \strong{plot.perf_mddsPLS} function is left to its default value.
@@ -52,7 +48,6 @@
 #' @export
 #'
 #' @examples
-#' library(doParallel)
 #' # Classification example :
 #' data("penicilliumYES")
 #' X <- penicilliumYES$X
@@ -68,12 +63,11 @@
 #' Y <- scale(liverToxicity$clinic)
 #' #res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,L0s=c(1,5,10,25,50),R = 1,
 #' # mode = "reg")
-perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NULL,R=1,
-                         reg_imp_model=TRUE,L0s=NULL,
-                         kfolds="loo",mode="reg",fold_fixed=NULL,
-                         maxIter_imput=20,errMin_imput=1e-9,NCORES=1,
+perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NULL,R=1,L0s=NULL,mu=NULL,
+                         deflat=FALSE,weight=FALSE,
+                         kfolds="loo",mode="reg",fold_fixed=NULL,NCORES=1,
                          NZV=1e-9,plot_result=T,legend_label=T){
-  ## Xs shaping
+  ## Xs shaping ##
   is.multi <- is.list(Xs)&!(is.data.frame(Xs))
   if(!is.multi){
     Xs <- list(Xs)
@@ -104,8 +98,8 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
   ## Get highest Lambda
   if(is.null(lambdas)&is.null(L0s)){
     if(is.null(lambda_max)){
-      MMss0 <- mddsPLS(Xs,Y,lambda = 0,R = 1,
-                       mode = mode,maxIter_imput = 0)$mod$Ms
+      MMss0 <- mddsPLS(Xs,Y,lambda = 0,R = 1,mu=mu,
+                       mode = mode)$mod$Ms
       lambda_max <- max(unlist(lapply(MMss0,
                                       function(Mi){max(abs(Mi))})))
     }
@@ -143,7 +137,7 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
                         errors <- rep(NA,nrow(paras_here))
                         select_y <- matrix(0,nrow(paras_here),nlevels(Y))
                       }
-                      has_converged <- rep(0,nrow(paras_here))
+                      number_iterations <- rep(0,nrow(paras_here))
                       time_build <- rep(0,nrow(paras_here))
                       for(i in 1:nrow(paras_here)){
                         R <- paras_here[i,1]
@@ -169,22 +163,19 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
                           Y_test <- Y[-pos_train]
                         }
                         if(!is.null(L0s)){
-                          mod_0 <- mddsPLS(X_train,Y_train,L0 = L0,
-                                           R = R,reg_imp_model=reg_imp_model,
-                                           mode = mode,errMin_imput = errMin_imput,
-                                           maxIter_imput = maxIter_imput,NZV=NZV,
+                          mod_0 <- mddsPLS(X_train,Y_train,L0 = L0,mu=mu,deflat=deflat,
+                                           R = R,weight = weight,
+                                           mode = mode,NZV=NZV,
                                            getVariances = F)
-
                         }else{
-                          mod_0 <- mddsPLS(X_train,Y_train,lambda = lambda,
-                                           R = R,reg_imp_model=reg_imp_model,
-                                           mode = mode,errMin_imput = errMin_imput,
-                                           maxIter_imput = maxIter_imput,NZV=NZV,
+                          mod_0 <- mddsPLS(X_train,Y_train,lambda = lambda,mu=mu,deflat=deflat,
+                                           R = R,weight = weight,
+                                           mode = mode,NZV=NZV,
                                            getVariances = F)
 
                         }
                         time_build[i] <- as.numeric((Sys.time()-t1))
-                        has_converged[i] <- mod_0$has_converged
+                        number_iterations[i] <- mod_0$number_iterations
                         Y_est <- predict.mddsPLS(mod_0,X_test)$y
                         if(mode=="reg"){
                           errors_here <- Y_test-Y_est
@@ -202,7 +193,7 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
                           select_y[i,v_no_null] <- 1
                         }
                       }
-                      out <- cbind(paras_here,errors,select_y,has_converged,time_build)
+                      out <- cbind(paras_here,errors,select_y,number_iterations,time_build)
                     }
   colnames(ERRORS)[1:3] <- c("R","L0","fold")
   if(NCORES_w!=1){
@@ -290,5 +281,7 @@ perf_mddsPLS <- function(Xs,Y,lambda_min=0,lambda_max=NULL,n_lambda=1,lambdas=NU
       plot(out,no_occurence=T,plot_mean = T)
     }
   }
+  res_plot_no_plot <- plot(out,no_plot=T)
+  out$Optim <- res_plot_no_plot[1:2]
   out
 }

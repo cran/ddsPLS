@@ -1,6 +1,6 @@
 Package: ddsPLS
-Version: 1.1.1
-Date: 2019-09-26
+Version: 1.1.4
+Date: 2020-03-02
 Title: Data-Driven Sparse Partial Least Squares Robust to Missing
         Samples for Mono and Multi-Block Data Sets
 Description: Allows to build Multi-Data-Driven Sparse Partial Least Squares models. Multi-blocks with 
@@ -32,10 +32,10 @@ Depends: R (>= 2.10)
 LinkingTo: Rcpp
 URL: https://hadrienlorenzo.netlify.com/
 NeedsCompilation: yes
-Packaged: 2019-09-26 15:07:56 UTC; hl1
+Packaged: 2020-03-02 11:01:55 UTC; hl1
 Author: Hadrien Lorenzo [aut, cre],
   Misbah Razzaq [ctb],
   Jerome Saracco [aut],
   Rodolphe Thiebaut [aut]
 Repository: CRAN
-Date/Publication: 2019-09-26 15:30:02 UTC
+Date/Publication: 2020-03-02 11:20:03 UTC

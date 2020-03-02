@@ -5,10 +5,9 @@
 \title{Function to compute cross-validation performances.}
 \usage{
 perf_mddsPLS(Xs, Y, lambda_min = 0, lambda_max = NULL, n_lambda = 1,
-  lambdas = NULL, R = 1, reg_imp_model = TRUE, L0s = NULL,
-  kfolds = "loo", mode = "reg", fold_fixed = NULL,
-  maxIter_imput = 20, errMin_imput = 1e-09, NCORES = 1,
-  NZV = 1e-09, plot_result = T, legend_label = T)
+  lambdas = NULL, R = 1, L0s = NULL, mu = NULL, deflat = FALSE,
+  weight = FALSE, kfolds = "loo", mode = "reg", fold_fixed = NULL,
+  NCORES = 1, NZV = 1e-09, plot_result = T, legend_label = T)
 }
 \arguments{
 \item{Xs}{A matrix, if there is only one block, or a list of matrices,
@@ -34,11 +33,14 @@ perf process. Default is \eqn{NULL}, when that parameter is not taken into accou
 \item{R}{A strictly positive integer detailing the number of components to
 build in the model.}
 
-\item{reg_imp_model}{Logical. Whether or not to regularize the imputation models.
-Initialized to \code{TRUE}.}
-
 \item{L0s}{A vector of non null positive integers. The values tested by the
 perf process. Default is \eqn{NULL} and is then not taken into account.}
+
+\item{mu}{A real positive. The Ridge parameter changing the bias of the regression model. If is NULL, consider the classical ddsPLS. Default to NULL.}
+
+\item{deflat}{Logical. If TRUE, the solution uses deflations to construct the weights.}
+
+\item{weight}{Logical. If TRUE, the scores are divided by the number of selected variables of their corresponding block.}
 
 \item{kfolds}{character or integer. If equals to "loo" then a \strong{leave-one-out}
 cross-validation is started. No other character is understood. Any strictly
@@ -49,13 +51,6 @@ positive integer gives the number of folds to make in the \strong{cross-validati
 \item{fold_fixed}{Vector of length \eqn{n}. Each element corresponds to the
 fold of the corresponding fold. If NULL then that argument is not considerd.
 Default to NULL.}
-
-\item{maxIter_imput}{Positive integer. Maximal number of iterations in the
-Tribe Stage of the Koh-Lanta algorithm. If equals to \eqn{0}, mean imputation is
- considered. Default is \eqn{5}.}
-
-\item{errMin_imput}{Positive real. Minimal error in the Tribe Stage of the
-Koh-Lanta algorithm. Default is \eqn{1e-9}.}
 
 \item{NCORES}{Integer. The number of cores. Default is \eqn{1}.}
 
@@ -74,7 +69,6 @@ the cross-validation process is made on the given set
 of parameters.
 }
 \examples{
-library(doParallel)
 # Classification example :
 data("penicilliumYES")
 X <- penicilliumYES$X
