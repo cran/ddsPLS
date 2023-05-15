@@ -1,818 +1,707 @@
 ---
-title: 'ddsPLS: Mono/Multi-block Data-Driven sparse PLS'
-author: "Hadrien LORENZO"
-date: "`r Sys.Date()`"
+title: "Data-Driven Sparse PLS (ddsPLS)"
+description: >
+  Learn how to use the ddsPLS package through a simulated example.
 output:
-  html_document:
-    number_sections: yes
-    theme: yeti
-    toc: yes
-    toc_float: yes
-  pdf_document:
-    toc: yes
-bibliography: bib.bib
+  rmarkdown::html_vignette
 vignette: >
-  %\VignetteEngine{knitr::knitr}
-  %\VignetteIndexEntry{ddsPLS : A Package to Deal with Multi-Block Supervised Problems with Missing Samples in High Dimension}
-  %\usepackage[utf8]{inputenc}
+  %\VignetteIndexEntry{Data-Driven Sparse PLS 2 (ddsPLS)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
-```{r,include=FALSE}
-DPI=300
-out.width="1000px"
-out.height="1000px"
-out.height_2="500px"
-library(htmltools)
-tagList(rmarkdown::html_dependency_font_awesome())
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
 ```
 
-In the following $\mathbf{X}\in\mathbb{R}^{n\times p}$ is a matrix of $n$ rows and $p$ columns describing the covariate part of a data set in a mono-block context. If this is a multi-block analysis, with one block for **Proteomics**, one block for **DNA methylation** for example and other $K-2$ blocks, then the covariate data set is built on $K$ blocks and is denoted as 
-$$
-\mathbf{X}_s=\{\mathbf{X}_{proteo},\mathbf{X}_{DNA},\cdots\}\in \mathbb{R}^{n\times p_{proteo}}\times\mathbb{R}^{n\times p_{DNA}}\times\cdots
-$$
-$\mathbf{X}_s$ is treated with *list()* structure by the package, so in case of multi-block analysis, thanks to present your dataset such as
-
-```{r, eval=F}
-# For no named matrices
-Xs <- list(X1,X2,X3)
-
-# For names matrices
-Xs <- list(X_dna=X1,X_proteo=X2,X_RNA=X3)
-```
-
-if the covariate part is filled with only one data set, it is possible to use the *list()* structure or not. 
-
-In the other cases, the number of variables in each matrix can be different. In the previous examples we have denoted by $p_{proteo}$ and $p_{DNA}$ two of the different number of variables. It is knowd that **Proteomics** data-sets are filled with hundreds of variables while **DNA methylation** data sets gather hundreds of thousands of variables.
-
-The supervizion part is described by the $\mathbf{Y}\in\mathbb{R}^{n\times q}$ matrix. In case of regression it can be a *vector* for univariate case ($q=1$) or a *matrix* or even a *data.frame*. In multi-variate regression, $q>1$, it can be a *matrix* or a *data.frame*. In case on classification, $\mathbf{Y}$ must be unidimensionnal but it can be a *vector* or a *matrix* or even a *data.frame*. The argument *mode* permits to choose between regression mode, then use *reg*, and classification mode, then use something else.
-
-In the $\mathbf{X}_s$ and $\mathbf{Y}$ data sets, the same numbers of individuals are described, $n$ and each of them are on the same row
-
-<i class="fa fa-exclamation-triangle fa-3x" aria-hidden="true"></i> **No individual can be missing in all the $\mathbf{X}$ matrices and no missing entry is allowed in the $\mathbf{Y}$ dataset**.
-
-# Introduction
-
-The present package [based on @lorenzo2019supervised]. It permits to take into account missing values in a multi-block context for supervized problems. It also permits to deal with data analyses with no missing values. Regression or classification regression paradigms are accepted.
-
-Only two parameters must to be fixed by the user :
-
- * **R** which is the number of components, analogous to the number of components in PCA.
- 
- * **$L_0\in\mathbb{N}^\star$** (or **$\lambda\in[0,1]$**) which is the regularization coefficient. $L_0$ can be directly interpreted as the maximum number of variables to be selected in the model.and $\lambda$ is the minimum of correlation value under which an interaction between a variable of a block $\mathbf{X}$ and one of the $\mathbf{Y}$ variables is not taken into account.
- 
-Those two parameters are to be fixed with cross validation. We have developped a parallelizable code, using **doParallel** package [see @doparalelManual]. This is transparent for the user, which hase just to fix the number of *cpus* to be used. The corresponding parameter is denoted as **NCORES**. If it equals $1$, then no parallelization structure is deployed.
-
-To load the **ddsPLS** package:
-```{r, fig.show='hold',message=FALSE}
+```{r setup}
 library(ddsPLS)
 ```
 
-In the following, only **regression** examples are shown. To perform classification analyses, please change the argument
+```{r, include = FALSE}
 
-```{r,eval=F}
-mode
+getData <- function(n=100,alpha=0.4,beta_0=0.2,sigma=0.3,
+                    p1=50,p2=25,p3=25,p=1000){
+  R1 = R2 = R3 <- 1
+  d <- R1+R2+R3
+  A0 <- matrix(c(
+    c(rep(1/sqrt(R1),p1),rep(sqrt(alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
+    c(rep(0,p1),rep(sqrt(1-alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
+    c(rep(0,p1),rep(0,p2),rep(1,p3),rep(0,p-p1-p2-p3))
+  ),nrow = d,byrow = T)
+  A <- eps*A0
+  D0 <- matrix(c(1,0,0,
+                 sqrt(beta_0),sqrt(1-beta_0),0,
+                 0,0,0),nrow = d,byrow = F)
+  D <- eps*D0
+  q <- ncol(D)
+  L_total <- q+p
+  psi <- matrix(rnorm((d+L_total)*n,mean = 0,1),n)
+  phi <- psi[,1:d,drop=F]
+  errorX <- matrix(rep(sqrt(1-apply(A^2,2,sum)),n),n,byrow = T)
+  errorY <- matrix(rep(sqrt(1-apply(D^2,2,sum)),n),n,byrow = T)
+  X <- phi%*%A + errorX*psi[,d+1:p,drop=F]
+  Y <- phi%*%D + errorY*psi[,d+p+1:q,drop=F]
+  list(X=X,Y=Y)
+}
+
+R2mean_diff_Q2mean <- cbind(
+  c(0.0390018049710666,0.0341751037010943,0.0300566345943933,0.0270372843280886,0.0251730242086019,0.0242227185400858,0.0234891342998435,0.0193133989423563,0.0169097166961483,0.0171263425383856,0.0170385680914704,0.0163279588077112,0.0152494718863702,0.0144263961042266,0.0139846253273588,0.0138793727811233,0.0138875727882883,0.0139142088056178,0.013947769332828,0.0151373262113938,0.0151964897734,0.0152786585690076,0.0184760931873834,0.0245523530157278,0.0329589020372058,0.0414793872444706,0.0487733189333913,0.0513953941897703,0.0513953941897703,0.0513953941897703)
+  ,
+  c(0.0511147118390687,0.0366502939988904,0.0244192885247774,0.0157596067948765,0.0103693740213229,0.00774690072471196,0.00654474100829194,0.00602821715754076,0.00456584615102629,0.000647908840480049,-0.0012117730626553,-0.00324779272702536,-0.00339597202321107,-0.00349873504246012,-0.00347050350187528,-0.00343289518836143,-0.0033818961424037,-0.00330807936244493,-0.00318820602484982,-0.00296287672757123,-0.00264380624349336,-0.00161555612407471,-0.00511044138700312,-0.00517941187733331,-0.0027506954114751,-0.000122694727787143,0,0,0,0)
+)
+
+Q2mean <- cbind(
+  c(
+    0.377432184277843,0.380140639849587,0.381440573733071,0.381211078689433,0.379661476366436,0.377071669682569,0.373718997129306,0.371737203943991,0.366583285363937,0.357192628930804,0.346720293574788,0.337697081091153,0.332215307215219,0.330014817204357,0.329463268875761,0.329394099789224,0.329391348298594,0.32939602992879,0.329401599141234,0.32892978442128,0.328934064910596,0.328947551675465,0.327555460720922,0.325057907988492,0.321266212859659,0.318924669092771,0.315393736421526,0.295485665498064,0.295485665498064,0.295485665498064
+  ),
+  c(
+    0.550769148647778,0.564051120615041,0.574049282463525,0.579753590218078,0.582232070714579,0.582828526524413,0.582822316455892,0.582729371555363,0.583602822903569,0.586270800202963,0.587558962483909,0.588999196398028,0.589131477829779,0.589208302519195,0.589207789772327,0.58920691960863,0.589205165067086,0.589201245713807,0.589190361787023,0.589150058389219,0.581193572554757,0.540787461471241,0.287353467160313,-0.174809002088594,-0.730811514935191,-0.992123542028864,-1,-1,-1,-1
+  )
+)
+
+PropQ2hPos <- cbind(
+  c(
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ),
+  c(
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.995,0.97,0.81,0.52,0.17,0.005,0,0,0,0
+  )
+)
+
+
+
+lambda_optim <- list(
+  c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE),
+  c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE),
+  c(FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE)
+)
+
+lambdaSparse <- c(0.5172414,0.4482759)
+
+
 ```
 
-to **lda** of **logit** if you want to perform classification thanks to linear discriminant analysis or logistic regression (only 2 classes allowed for **logit**).
+## Overview
 
-## Classification case
+The objective is to explain a block-matrix $\mathbf{Y}$ thanks to a block-matrix $\mathbf{X}$. Each block describes $n$ observations through $q$ numerical variables for the block-matrix $\mathbf{Y}$ and $p$ numerical variables for the block-matrix $\mathbf{X}$. The links are assumed to be linear such as the objective is to estimated a linear matrix transformation $\mathbf{B}$ such as
 
-```{r, eval=F}
-data("penicilliumYES")
-X <- penicilliumYES$X
-X <- scale(X[,which(apply(X,2,sd)>0)])
-Xs <- list(X[,1:1000],X[,-(1:1000)])
-Xs[[1]][1:5,]=Xs[[2]][6:10,] <- NA
-Y <- as.factor(unlist(lapply(c("Melanoconidiu","Polonicum","Venetum"),function(tt){rep(tt,12)})))
+$$
+\mathbf{Y} = \mathbf{X}\mathbf{B} + \mathbf{E},
+$$
+where $\mathbf{E}$ is an additive random noise.
 
-mddsPLS_model_class <- mddsPLS(Xs = Xs,Y = Y,L0=3,R = 2,mode = "lda")
+In the general case, the number of observations $n$ can be lower than the number of descriptors $p$ and most of regression methods cannot handle the estimation of the matrix $\mathbf{B}$, often denoted $n<\!<p$. The **ddsPLS** methodology deals with this framework.
+
+The objective of the proposed method is to estimate the matrix $\mathbf{B}$ and to simultaneously select the relevant variables in $\mathbf{Y}$ and in $\mathbf{X}$.
+
+The methodology gives quality descriptors of the optimal built model, in terms of explained variance and prediction error, and provides a ranking of variable importance.
+
+## Tuning parameters
+
+Only two kinds of parameters need to be tuned in the **ddsPLS** methodology. This tuning is automatically data driven. The proposed criterion uses the power of bootstrap, a classical statistical tool that generates different samples from an initial one, particularly interesting when the sample size $n$ is small.
+
+The tuning parameters are:
+
+* the number $R$ of independent links (latent components) between the matrix $\mathbf{Y}$ and the matrix $\mathbf{X}$.
+* For each latent component $r\in [\![1,R]\!]$, the regularization coefficient $\lambda_r\in [0,1]$, which is easily interpretable as the minimum level of absolute correlation between the variables of $\mathbf{Y}$ and $\mathbf{X}$ allowed in the building of the current component. For instance, the $\mathbf{X}$ selected variables of a built component with $\lambda_r=0.2$ are at least correlated to 0.2 with the $\mathbf{Y}$ selected variables.
+
+More precisely, the **ddsPLS** methodology detailed in this vignette is based on $R$ soft-thresholded estimations of the covariance matrices between a $q$-dimensional response matrix $\mathbf{Y}$ and a $p$-dimensional covariable matrix $\mathbf{X}$. Each soft-threshold parameter is the $\lambda_r$ parameter introduced above. It relies on the following latent variable model.
+
+## Quality descriptors
+
+### Construction and prediction errors
+
+The **ddsPLS** methodology uses the principle of construction and prediction errors. The first one, denoted as $R^2$, evaluates the precision of the model on the training data-set. The second one, denoted as $Q^2$, evaluates the precision of the model on a test data-set, independent from the train data-set.
+The $R^2$ is well known to be sensible to over-fitting and an accepted rule of thumb, among PLS users, is to select model for which the difference $R^2-Q^2$ is minimum.
+
+The **ddsPLS** methodology is based on bootstrap versions of the $R^2$ and the $Q^2$ defined below.
+
+### Bootstrap versions of the $R^2$ and the $Q^2$
+
+More precisely, for the bootstrap sample of index $b$, among a total of $B$ bootstrap samples, the $R^2_b$ and the $Q^2_b$ are defined as
+$$
+\begin{array}{cc}
+\begin{array}{rccc}
+&R^{2}_b  & = & 1-\dfrac{
+\left|\left|\mathbf{y}_{\text{IN}(b)}
+-\hat{\mathbf{y}}_{\text{IN}(b)}\right|\right|^2
+}{
+\left|\left|\mathbf{y}_{\text{IN}(b)}
+-\bar{\mathbf{y}}_{\text{IN}(b)}\right|\right|^2
+},
+\end{array}
+&  
+\begin{array}{rccc}
+&Q^{2}_b  & = & 1-\dfrac{
+\left|\left|\mathbf{y}_{\text{OOB}(b)}
+-\hat{\mathbf{y}}_{\text{OOB}(b)}\right|\right|^2
+}{
+\left|\left|\mathbf{y}_{\text{OOB}(b)}
+-\bar{\mathbf{y}}_{\text{IN}(b)}\right|\right|^2
+},
+\end{array}
+\end{array}
+$$
+where the IN(b) (IN for "In Bag") is the list on indices of the observations selected in the bootstrap sample $b$ and OOB(b) (OOB for "Out-Of-Bag") is the list on indices not selected in the bootstrap sample. Then, the subscripts IN(b) correspond to values of the object taken for in-bag indices (respectively for subscript notation OOB(b) and out-of-bag indices). Also, the "$\hat{\mathbf{y}}$" notation corresponds to the estimation of "$\mathbf{y}$" by the current model (based on the in-bag sample) and "$\bar{\mathbf{y}}$" stands for the mean estimator of "$\mathbf{y}$". 
+The **ddsPLS** methodology aggregates the $B$ descriptors $R^2_b$ and $Q^2_b$ as follows:
+$$
+\bar{R}^{2}_{B}=\frac{1}{B}\sum_{b=1}^{B}R^2_b ~~~\mbox{and}~~~  \bar{Q}^{2}_{B}=\frac{1}{B}\sum_{b=1}^{B}Q^2_b.
+$$
+
+Even if the notations of the metrics $\bar{R}^{2}_{B}$ and $\bar{Q}^{2}_{B}$ show a square, they can be negative. Indeed, for large samples, they actually compare the quality of the built model to the mean prediction model: 
+
+* if the metrics is $>0$ then the model works better than the mean estimator,
+* if the metrics is $<0$ then the model works worse than the mean estimator.
+
+As the objective of a linear prediction model is to build models better than the mean prediction model, a rule of thumb is to select models for which
+$$
+\begin{array}{ccc}
+\mbox{(A)} &:& \bar{Q}^{2}_{B}>0.
+\end{array}
+$$
+
+A second rule of thumb is necessary to determine if a new component is relevant to improve the overall prediction power of the model. If the $r^{th}$-component is tested, then the condition writes
+
+> $$
+\begin{array}{ccc}
+\mbox{(Ar)} &:& \bar{Q}^{2}_{B,r}>0,
+\end{array}
+$$
+
+where $\bar{Q}^{2}_{B,r}$ is the "component-version" of $\bar{Q}^{2}_{B}$" defined in **Appendix A.1**.
+
+> **_Remark 1_**
+The metrics $\bar{R}^{2}_{B}$ and $\bar{Q}^{2}_{B}$ are in fact estimators of a same statistic $\gamma$, associated with a prediction model $\mathcal{P}$:
+$$
+\begin{array}{ccc}
+\gamma(\mathcal{P})  & = & 1-\dfrac{
+\sum_{j=1}^q
+\mbox{var}
+({y}_{j}
+-y_{j}^{(\mathcal{P})})
+}{
+\sum_{j=1}^q
+\mbox{var}
+({y}_{j})},
+\end{array}
+$$
+where $y_{j}^{(\mathcal{P})})$ is the prediction of the $j^{th}$ component of $\mathbf{y}$ by the model $\mathcal{P}$. 
+The closer this statistic is to 1, the more accurate the model $\mathcal{P}$ is.
+
+### Automatic tunning of the parameters
+
+As said before, a **ddsPLS** model of $r$ components is based on $r$ parameters $(\lambda_1,\dots, \lambda_r)$, denoted $\mathcal{P}_{{\lambda}_1,\dots,{\lambda}_{r}}$. The metrics $\bar{R}^{2}_{B}$, $\bar{Q}^{2}_{B}$ or $\bar{Q}^{2}_{B,r}$ are functions of the values taken by the estimated **ddsPLS** models $\widehat{\mathcal{P}}$, which depend on the $r$ estimated $\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r}$ parameter. The **ddsPLS** methodology is based on a set of to be tested values for estimating each $\lambda_s$, $\forall s\in[\![1,r]\!]$, which is denoted as $\Lambda$ in the following. Their values are pick in $[0,1]$.
+
+We denote by 
+$$
+\bar{R}^{2}_{B}(\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r}})~~~\text{and}~~~\bar{Q}^{2}_{B}(\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r}})
+$$
+the values of the two metrics for the estimated **ddsPLS** model $\widehat{\mathcal{P}}$ of $r$ components, based on the $r$ estimated regularization coefficients $\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r}$.
+For each component, the **ddsPLS** methodology seeks the model which minimizes the difference between those two metrics, more precisely:
+
+> $$
+\begin{array}{cccc}
+\widehat{\lambda}_r 
+&=&
+\mbox{arg min}_{\lambda\in \Lambda} 
+&
+\bar{R}^{2}_{B}(
+\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1},\lambda}
+)
+-
+\bar{Q}^{2}_{B}(
+\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1},\lambda}
+),\\
+&& \mbox{s.t} &
+\left\{\begin{array}{l}
+\bar{Q}^{2}_{B}(
+\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1},\lambda}
+)>\bar{Q}^{2}_{B}(
+\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1}}
+),\\
+\bar{Q}^{2}_{B,r}(
+\widehat{\mathcal{P}}_{\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1},\lambda}
+)>0.
+\end{array}\right.
+\end{array}
+$$
+
+### Nota bene
+The $r^{th}$-component is not built if $\widehat{\lambda}_r =\emptyset$ and so the selected model is a $(r-1)$-component (if $r-1>0$ or is the mean estimator model) with estimated values for the regularization coefficients $(\widehat{\lambda}_1,\dots,\widehat{\lambda}_{r-1})$.
+
+## Download and load the package
+
+The package depends on a low number of low level packages. They are of two types:
+
+* Parallelization packages: ``foreach``, ``parallel`` and ``doParallel`` (which depends on both of the previous packages).
+
+* $\mathbf{C}^{++}$-developer packages: ``Rcpp`` (for basic $\mathbf{C}^{++}$ development) and ``RcppEigen`` (for inner mathematical operations).
+
+```{r loadPAckage,eval=F}
+devtools::install_github("hlorenzo/ddsPLS")
+library(ddsPLS)
 ```
 
-is considered a mult-block classification case analysis with missing samples. **mode="lda"** is used since there are 3 classes to discriminate.
-
-# Mono-block
-The here used method can be used on mono and multi-block datasets with no missing values.
-In the case on mono-block datasets, there is no current developpment to deal with missing samples. Actually this would imply that for a given individual, no covariate is known. Which block any inference.
-
-## Regression case {.tabset}
-
-The regression case has been treated through a toy example well know dataset in that section.
-
-### Build a model {.tabset}
-
-We have worked on the Liver Toxicity dataset [see @bushel2007simultaneous]. This data set contains the expression measure of 3116 genes and 10 clinical measurements for 64 subjects (rats) that were exposed to non-toxic, moderately toxic or severely toxic doses of acetaminophen in a controlled experiment. Therefore the structure is :
-$$\mathbf{X}\in\mathbb{R}^{64\times3116},\mathbf{Y}\in\mathbb{R}^{64\times10}$$
-
-The following commands permit to create the model.
-
-```{r, fig.show='hold',message=FALSE,eval=T}
-data("liverToxicity")
-X <- scale(liverToxicity$gene)
-Y <- scale(liverToxicity$clinic)
-mddsPLS_model_reg <- mddsPLS(Xs = X,Y = Y,L0=10,R = 3,
-                             mode = "reg")
-```
-
-#### Plot Method {.tabset}
-
-The **Plot** mehtod permits many types of representation. Among which
-
- * *weights* which shows all the weights under barplot representations. If **super** is set to **TRUE**, then the **super-weights** are represented. In the mono-block case, **super-weights** are equal to **weights**.
- * *heatmap* which shows the selected variables (for $\mathbf{X}$ and $\mathbf{Y}$) for the all individuals.
-
-The following sections detailed the discussed method though those parametizations.
- 
-##### *Super-Weight* representation
-
-The following figure permits to represent the *super-weights* for the first and the second components for block 1 (mono-block case actually) and block Y. **mar_left** parameter adds extra values on the left of the plot, usefull to see variable names.
-
-```{r,fig.height=10,fig.width=10,echo=T,dpi=DPI,out.width= out.width,out.height=out.height}
-plot(mddsPLS_model_reg,vizu = "weights",variance = "Linear",
-     super = T,comp = c(1,2),addY = T,mar_left = 3,mar_bottom = 3,
-     pos_legend = "topright",reorder_Y = T,legend.cex = 1.5)
-```
-
-##### *Heatmap* representation
-
-Heatmap permit to appreciate the discriminative aspect of variables according to their individual representations. It has been decided to plot heatmaps component per component, only the first one here
-
-```{r,fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height_2}
-plot(mddsPLS_model_reg,vizu = "heatmap",comp = 1)
+```{r loadPAckage2,echo=F}
+library(ddsPLS)
 ```
 
 
-Each variable has been normalized separately. Dendrogram are used in the individual and in the variable directions using **hclust** similarities.
+## A Latent Variable Model
 
-#### Summary Method
+In the following, we study a synthetic structure defined as, in general
 
-A *summary* method explains more precisely the model.
+$$
+\left\{
+\begin{array}{l}
+\mathbf{x} = \mathbf{A}'\boldsymbol{\phi} + \boldsymbol{\epsilon},\  
+\mathbf{A}\in\mathbb{R}^{R\times p},
+\\
+\mathbf{y} = \mathbf{D}'\boldsymbol{\phi}+ \boldsymbol{\xi},\  
+\mathbf{D}\in\mathbb{R}^{R\times q},
+\end{array}
+\right.
+$$
 
-```{r, fig.show='hold',message=FALSE,eval=T}
-summary(mddsPLS_model_reg)
+where $R$ is the total number of eigenvectors of $\mathbf{A}'\mathbf{A}=\mbox{var}\left(\mathbf{x}\right)$ with non-null projections on $\mathbf{A}'\mathbf{D}=\mbox{cov}\left(\mathbf{x},\mathbf{y}\right)$. In the PLS context this is the theoretical number of components.
+
+### A high-dimensional structure
+
+For the sack of the proposed simulations, we use $R=2$ (associated to the dimension of $\boldsymbol{\phi}$), $p=1000$ (associated to the dimension of $\mathbf{A}'\boldsymbol{\phi}$ and $\boldsymbol{\epsilon}$) and $q=3$ (associated to the dimension of $\mathbf{D}'\boldsymbol{\phi}$ and $\boldsymbol{\xi}$). 
+
+The total number of such data-sets is rarely higher than $p=1000$ and the constraint $n<\!<p$ holds most of times. This is an high-dimensionnal data-set.
+
+Each observation of those random vectors are generated following a multivariate normal distribution such as
+$$
+\boldsymbol{\psi}=(\boldsymbol{\phi}',\boldsymbol{\epsilon}_{1,\dots,100}'/\sigma,\boldsymbol{\epsilon}_{101,\dots,1000}',\boldsymbol{\xi}_{1,2}',\xi_3)'\sim \mathcal{N}\left(\mathbf{0}_{2+1000+3},\mathbb{I}_{2+1000+3}\right),
+$$ 
+
+where $\sigma$ is the standard deviation of the additive noise. A response variable $\mathbf{y}$ of $q=3$ components is generated as a linear combination of the latent variable $\boldsymbol{\phi}$ to which is added a Gaussian noise $\boldsymbol{\xi}$. The equivalent process generates a variable $\mathbf{x}$ of $p=1000$ components, from the matrix $\mathbf{A}$ and Gaussian additive noise ${\sigma}=\sqrt{1-0.95^2}\approx0.312$.
+The columns of $\mathbf{A}$ and $\mathbf{D}$ are normalized such as 
+
+$$
+\forall(i,j)\in[\![1,p]\!]\times[\![1,q]\!],\ \mbox{var}({x}_i)=\mbox{var}({y}_j)=1.
+$$
+
+> **_Remark 2_**
+Taking into account **_Remark 1_** and the current statistical model, we can define a theoretical (understanding if $n\rightarrow +\infty$) value for $\gamma(\mathcal{P})$ which is 
+$$
+\begin{array}{ccc}
+\gamma^\star  & = & 1-\dfrac{
+\sum_{j=1}^q
+\mbox{var}
+(\epsilon_j)
+}{
+\sum_{j=1}^q
+\mbox{var}
+({y}_{j})}= 2(1-\sigma^2)/3\approx0.602.
+\end{array}
+$$
+Comparing this theorethical value to the values of $\bar{Q}^2_B$ helps interpretability, for theorethical work only. If $\bar{Q}^2_B<\!<\gamma^\star$ then the corresponding model is not enough efficient. If $\bar{Q}^2_B>\!>\gamma^\star$ then the corresponding model overfits the data.
+
+
+### Correlation structure
+
+More precisely we propose to study the following matrices $\mathbf{A}$ and $\mathbf{D}$
+$$
+\begin{array}{c l c c}
+&
+\mathbf{A} =\sqrt{1-\sigma^2}
+\left(\begin{array}{ccc}
+\boldsymbol{1}_{50}' & \sqrt{\alpha}\boldsymbol{1}_{25}' & \boldsymbol{0}_{25}' & \boldsymbol{0}_{900}'\\
+\boldsymbol{0}_{50}' & \sqrt{1-\alpha}\boldsymbol{1}_{25}' & \boldsymbol{0}_{25}' & \boldsymbol{0}_{900}'\\
+\boldsymbol{0}_{50}' & \boldsymbol{0}_{25}' &\boldsymbol{1}_{25}' &  \boldsymbol{0}_{900}'\\
+\end{array} \right)_{(3,1000)}
+&\text{ and }&
+\mathbf{D}=\sqrt{1-\sigma^2}
+\left(\begin{array}{ccc}
+1 & \sqrt{\beta_0} & 0 \\ 
+0 & \sqrt{1-\beta_0} & 0 \\
+0 & 0 & 0 \\
+\end{array} \right)_{(3,3)},
+\end{array}
+$$
+where $\alpha\in [0,1]$ can be easily interpreted. Indeed, $\alpha$ controls the correlation between the components $\mathbf{x}_{1\dots 50}$ and  $\mathbf{x}_{51\dots 75}$. Also $\beta_0=0.1$. It indirectly controls the association between $\mathbf{x}$ and $y_2$. The effects of $\alpha$ on those two associations are detailed in the following table.
+
+| Value of $\alpha$ | $\alpha\approx 0$ |$\alpha\approx 1$ |
+|:--|:--:|:--:|
+|$\mbox{cor}(\mathbf{x}_{1\dots 50},\mathbf{x}_{51\dots 75})$|Strong|Low|
+|$\mbox{cor}(\mathbf{x},y_2)$|Strong|Low|
+
+If $\alpha> 1/2$, the second variable response component, $y_2$, is hard to predict and the variables $\mathbf{x}_{51\dots 75}$ are hard to select. 
+The objective is to build models predicting $y_1$ and $y_2$ but not $y_3$. Also components 1 to 75 of $\mathbf{x}$ should be selected.
+
+The function ``getData``, printed in **Appendix A.2** allows to simulate a couple (**X**,**Y**) according to this structure.
+
+## A low correlated data-set
+
+We assume that $\alpha=0.1$ and we simulate the data thanks to the function given in **Appendix A.2**. For this simulation, a sample of $n=200$ observations is chosen
+
+```{r noCor, eval=T}
+eps <- 0.95
+n <- 100
+alpha <- 0.1
+datas <- getData(n=n,alpha=alpha,beta_0=0.1,sigma=sqrt(1-eps^2),
+                 p1=50,p2=25,p3=25,p=300)
 ```
 
+It is also a necessity to fix the grid of $\lambda$, denoted as $\Lambda$ in the previous section and ``lambdas`` in the following. Also the number ``n_B`` of bootstrap samples is chosen, fixed to 20.
 
+```{r noCor2, eval=T}
+lambdas <- seq(0,1,length.out = 30)
+n_B <- 20
+```
 
-#### Get selected variables
+Finally we have chosen to build the model working on ``NCORES=4`` CPUs.
 
-Output *var_selected* permits to get the selected variables per block.
+```{r noCor3, eval=F}
+NCORES <- 4
+mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdas,
+              n_B=n_B,NCORES=NCORES,verbose = F)
+```
 
-This is a list filled with \code{2R}-column matrices corresponding to the non nul coefficients of each block on the \emph{Super-Components}. They are ordered according to their absolute value on the first **Super-Component**, in a decreasing way.
+```{r noCor3hide, echo=F}
+mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdaSparse,
+              n_B=n_B,NCORES=1,verbose = F)
+```
+
+Once the model is built, it is easy to check its performance thanks to the **summary** S3-method.
+
+```{r summ}
+sum_up <- summary(mo,return = T)
+```
+
+A $2$-components model has been built and different metrics are detailed. We can discuss different points:
+
+* the estimated values for $\lambda_1$ and $\lambda_2$ are 0.41 and 0.55 which means that no correlation between any **X** or **Y** variables lower than 0.41 will be considered for building the components and so for building the regression matrix.
+* the variable $\mathbf{Y}_3$ is not selected.
+* the metrics of prediction error is equal to $\bar{Q}_{B}^2=0.58$ which is below the theoretical value $\gamma^\star\approx0.602$.
+
+Also, this **S3-method** can be used to get the list of the selected variables (and the figure of the _Yes/No_ selction variable, as visible). The high dimension of the data does not allow to conclude directly, the following command allows to say that the variables selected in the **X** data set are exactly the one desired (since the two lists are exactly the same).
+
+```{r selX}
+setdiff(1:75,mo$Selection$X)
+```
+
+## Evaluate the quality of the model
+
+### Compare with "non selection" **ddsPLS** model
+
+As a popint of comparison, we can build the **ddsPLS** model for which $\Lambda=\{0\}$ and look at its prediction performances, through the $\bar{Q}_B^2$ statistics.
+```{r noCor30, eval=F}
+mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
+               n_B=n_B,NCORES=NCORES,verbose = F)
+sum0 <- summary(mo0,return = T)
+print(sum0$R2Q2[,c(1,4)])
+```
+
 
 ```{r}
-mddsPLS_model_reg$var_selected[[1]]
+mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
+               n_B=n_B,NCORES=1,verbose = F)
+sum0 <- summary(mo0,return = T)
 ```
 
-### Cross Validation {.tabset}
-
-The cross-validation process is started in a leave-one-out design along $1$ dimension. **NCORES** fixes the number of cores in the paralellized process, **n\_lambda** fixes the number of regularization coefficients to be tested.
-
-```{r,message=FALSE,eval=F}
-n_lambda <- 50
-NCORES <- 7
-
-res_cv_reg_L0 <- perf_mddsPLS(Xs = X,Y = Y,
-                           R = 1,L0s=1:50,
-                           mode = "reg",NCORES = NCORES,kfolds = "loo")
-
-res_cv_reg <- perf_mddsPLS(Xs = X,Y = Y,
-                           R = 1,lambda_min=0.5,n_lambda=n_lambda,
-                           mode = "reg",NCORES = NCORES,kfolds = "loo")
-```
-
-```{r,echo=F}
-# res_cv_reg$Xs <- NULL
-# res_cv_reg_L0$Xs <- NULL
-# save(res_cv_reg,file="res_cv_reg_noXs.RData")
-# save(res_cv_reg_L0,file="res_cv_reg_L0_noXs.RData")
-load("res_cv_reg_noXs.RData")
-load("res_cv_reg_L0_noXs.RData")
-res_cv_reg$Xs <- list(X)
-res_cv_reg_L0$Xs <- list(X)
-```
-
-#### Error Plot {.tabset}
-
-A *plot* method plots the results. *plot_mean* permits to add the mean of the **Y** variable prediction errors. *legend_names* permits to add a legend with the names of the **Y** variables. *pos_legend* permits to choose the position of the legend. *which_sd_plot* picks the **Y** variables whose standard error must be drawn.
-
-
-##### Using $L_0$ paradigm
-
-```{r, fig.show='hold',message=FALSE,eval=T,fig.width=10, fig.height=6,dpi=DPI,out.width= out.width,out.height=out.height}
-plot(res_cv_reg_L0,which_sd_plot = c(5,7),ylim=c(0,1.1),alpha.f = 0.4,
-     plot_mean = T,legend_names = colnames(Y),pos_legend = "bottomright",no_occurence = T)
-```
-
-Minimum for $L_0\approx 18$.
-
-##### Using $\lambda$ paradigm
-
-```{r, fig.show='hold',message=FALSE,eval=T,fig.width=10, fig.height=6,dpi=DPI,out.width= out.width,out.height=out.height}
-plot(res_cv_reg,which_sd_plot = c(5,7),ylim=c(0,1.1),
-     alpha.f = 0.4,plot_mean = T,legend_names = colnames(Y),
-     no_occurence = T)
-```
-
-Minimum for $\lambda\approx0.85$.
-
-##### Observations
-
-Are also plotted vertical lines representing:
-
-  * The global minimum,
-  * The minimum of the **Mean MSEP**.
-  
-The two panels building this plot are headed with numbers. Red for the error curves and blue for the $\mathbf{Y}$ variable occurence curves. It represents the number of variables selected in the $\mathbf{X}$ and in the $\mathbf{Y}$ respectively for the model built on the matrices given to the function.
-
-If one would not prefer to see the occurence plot. The parameter *no_occurence*, when set to **TRUE**, permits to hide it.
-
-#### Summary Method
-
-A *summary* methods explains more precisely the model. The parameter *plot_res_cv* uses the **plot** method. Are also presented the statistical results of the algorithm (convergence for each fold, time of computation).
-
-```{r, fig.show='hold',message=FALSE,eval=T}
-summary(res_cv_reg,plot_res_cv =F)
-```
-
-The **Cross-Validation results** is a matrix with **4** columns and **N** rows, each row corresponds to a couple $(R,\lambda)$ teste. Each column correpsonds to:
-
- * **R**: The number of components built,
- * **lambda**: The regularization coefficient,
- * **Nb.of.convergences.VS.nb.of.fold**: The number of models, in the cross-validation process, which have converged against the total number of models built.
- * **Mean.sd..time.of.computation**: The mean time of computation for bulding a model and, in parenthesis, its standard deviation.
-
-
-
-<!-- ## Classification case {.tabset} -->
-
-<!-- ### Build a model {.tabset} -->
-
-<!-- The data set penicilliumYES has 36 rows and 3754 columns, see @clemmensen2007method The variables are 1st order statistics from multi-spectral images of three species of Penicillium fungi: Melanoconidium, Polonicum, and Venetum. These are the data used in the Clemmemsen et al "Sparse Discriminant Analysis" paper. Therefore the structure is, where $\mathbf{Y}$ is the dummy matrix of the $3$ classes : -->
-<!-- $$\mathbf{X}\in\mathbb{R}^{36\times3754},\mathbf{Y}\in\mathbb{R}^{36\times3}$$ -->
-
-<!-- ```{r, fig.show='hold',fig.width=7, fig.height=5,message=FALSE,eval=T} -->
-<!-- data("penicilliumYES") -->
-<!-- X <- penicilliumYES$X -->
-<!-- X <- scale(X[,which(apply(X,2,sd)>0)]) -->
-<!-- classes <- c("Melanoconidium","Polonicum","Venetum") -->
-<!-- Y <- as.factor(unlist(lapply(classes, -->
-<!--                              function(tt){rep(tt,12)}))) -->
-<!-- mddsPLS_model_class <- mddsPLS(Xs = X,Y = Y,lambda = 0.956,R = 2, -->
-<!--                                mode = "clas",verbose = TRUE) -->
-<!-- ``` -->
-
-<!-- #### Plot Method {.tabset} -->
-
-<!-- The **Plot** mehtod permits many types of representation. Among which -->
-
-<!--  * *weights* which shows all the weights under barplot representations. If **super** is set to **TRUE**, then the **super-weights** are represented. In the mono-block case, **super-weights** are equal to **weights**. -->
-<!--  * *heatmap* which shows the selected variables (for $\mathbf{X}$ and $\mathbf{Y}$) for the all individuals. -->
-
-<!-- The following sections detailed the discussed method though those parametizations. -->
-
-<!-- ##### *Super-Weight* representation -->
-
-<!-- The following figure permits to represent the *super-weights* for the first and the second components for block 1 (mono-block case actually) and block Y. **mar_left** parameter adds extra values on the left of the plot, usefull to see variable names. -->
-
-<!-- ```{r,fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- plot(mddsPLS_model_class,vizu = "weights",super=T,comp = c(1,2),addY = T,mar_bottom = 3,mar_left = 3,legend.cex = 1,reorder_Y = T) -->
-<!-- ``` -->
-
-<!-- ##### *Heatmap* representation {.tabset} -->
-
-<!-- Heatmap permit to appreciate the discriminative aspect of variables according to their individual representations. It has been decided to plot heatmaps component per component, only the first component in the case of that example. -->
-
-<!-- ```{r,fig.height=7,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- plot(mddsPLS_model_class,vizu = "heatmap",comp = 1) -->
-<!-- ``` -->
-
-<!-- Each variable has been normalized separately. Dendrogram are used in the individual and in the variable directions using **hclust** similarities. -->
-
-<!-- #### Summary Method -->
-
-<!-- A *summary* method explains more precisely the model. -->
-
-<!-- ```{r, fig.show='hold',message=FALSE,eval=T} -->
-<!-- summary(mddsPLS_model_class) -->
-<!-- ``` -->
-
-
-<!-- #### Get selected variables -->
-
-<!-- Output *var_selected* permits to get the selected varaibles per block. -->
-
-<!-- This is a list filled with \code{2R}-column matrices corresponding to the non nul coefficients of each block on the \emph{Super-Components}. They are ordered according to their absolute value on the first **Super-Component**, in a decreasing way. Only $2$ significance digits are kept here for convenience. -->
-
-<!-- ```{r} -->
-<!-- signif(mddsPLS_model_class$var_selected[[1]],2) -->
-<!-- ``` -->
-
-<!-- ### Plot the two first axes  -->
-
-<!-- ```{r, fig.show='hold',fig.width=10, fig.height=5,message=FALSE,eval=T,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- plot(mddsPLS_model_class$mod$T_super,col=Y,pch=as.numeric(Y)+15,cex=2, -->
-<!--      xlab="1st X component, 2 var. selected", -->
-<!--      ylab="2nd X component, 2 var. selected") -->
-<!-- legend(-2,0,legend=classes,col=1:3,pch=15+(1:3),box.lty=0,y.intersp=2) -->
-<!-- ``` -->
-
-<!-- ### Cross-validation -->
-
-<!-- The cross-validation process is started in a fold-fixed design, because each sample is repeated $3$ times. In that sense this is a leave-one-out process. $R=2$ fixes the number of dimensions to 2. **NCORES** fixes the number of cores in the paralellized process, **n\_lambda** fixes the number of regularization terms to be tested. -->
-
-<!-- ```{r,fig.width=7, fig.height=6,message=FALSE,eval=F} -->
-<!-- n_lambda <- 50 -->
-<!-- NCORES <- 7 -->
-<!-- res_cv_class <- perf_mddsPLS(X,Y,R = 2,lambda_min=0.95,n_lambda=n_lambda, -->
-<!--                              mode = "clas",NCORES = NCORES, -->
-<!--                              fold_fixed = rep(1:12,3)) -->
-<!-- ``` -->
-
-<!-- The results can be plotted thanks to the next figure which uses the **plot** method. -->
-
-<!-- ```{r,echo=F} -->
-<!-- # save(res_cv_class,file="res_cv_class_noXs.RData") -->
-<!-- load(file="res_cv_class_noXs.RData") -->
-<!-- res_cv_class$Xs <- list(X) -->
-<!-- ``` -->
-
-<!-- ```{r,fig.width=10, fig.height=6,message=FALSE,eval=T,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- plot(res_cv_class,legend_names = levels(Y),pos_legend="bottomleft") -->
-<!-- ``` -->
-
-<!-- Both of the vertical lines set the position of the sparsest models giving the maximum accuracy glogally, right one, and in mean, left one. -->
-
-<!-- The best suited model is chosen for $\lambda\approx0.957$. As the top ruller explains, that model selects $4$ different variables.  -->
-
-<!-- In the following we have performed another cross-validation but the $\lambda$ paramter is not given as an input of the method. In fact we have decided to give a parameter $L_0$ corresponding to the maximum number of variables to be selected in the final model. -->
-
-<!-- ```{r,eval=F} -->
-<!-- NCORES <- 7 -->
-<!-- res_cv_class_L0 <- perf_mddsPLS(X,Y,R = 2,L0s = 1:4, -->
-<!--                              mode = "clas",NCORES = NCORES, -->
-<!--                              fold_fixed = rep(1:12,3)) -->
-<!-- ``` -->
-
-<!-- ```{r,eval=T,echo=F} -->
-<!-- # save(res_cv_class_L0,file="res_cv_class_L0_noXs.RData") -->
-<!-- load(file="res_cv_class_L0_noXs.RData") -->
-<!-- res_cv_class_L0$Xs <- list(X) -->
-<!-- ``` -->
-
-<!-- Which can simply plotted with the following command -->
-
-<!-- ```{r,eval=T,fig.height=6,fig.width=10,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- plot(res_cv_class_L0,legend_names = levels(Y), -->
-<!--      pos_legend="bottomright",plot_mean = T) -->
-<!-- ``` -->
-
-<!-- This synthaxe is particularly well suited when the number of samples is low and so the $(X_j,Y_j)$ are sensible to down-sampling. -->
-
-<!-- It is now clear that the best model is reached for $L_0=3$. -->
-
-<!-- ### Optimal Models {.tabset} -->
-
-<!-- In [@clemmensen2011sparse], only $2$ variableds are selected.  -->
-
-<!-- #### Using $\lambda$ paradigm -->
-
-
-
-<!-- ```{r,eval=T,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- model_lambda <- mddsPLS(X,Y,R = 2,lambda = 0.957,mode = "cla" ) -->
-<!-- plot(model_lambda,super = T) -->
-<!-- ``` -->
-
-<!-- This model selects $4$ variables. -->
-
-<!-- #### Using $L_0$ paradigm -->
-
-<!-- ```{r,eval=T,fig.width=10,fig.height=6,dpi=DPI,out.width= out.width,out.height=out.height} -->
-<!-- model_L0 <- mddsPLS(X,Y,R = 2,L0 = 3,mode = "cla") -->
-<!-- plot(model_L0,super = T,addY = T,pos_legend = "topright",reorder_Y = T,legend.cex = 1) -->
-<!-- ``` -->
-
-<!-- This model selects $3$ variables. -->
-
-
-
-
-
-
-# Multi-block
-
-Two different analyses are detailed here, the first one presents the tool and the second one permits to simulate a data-set and details its analysis thanks to the **ddsPLS** tool.
-
-## Toy example {.tabset}
-
-In the case of missing values it is possible to visualize the missing positions. Let us just consider a 3-blocks toy-example case, based on the previous dataset, such as
+It is possible to compare the prediction qualities of the two models using
 
 ```{r}
-data("liverToxicity")
-X <- scale(liverToxicity$gene)
-Y <- scale(liverToxicity$clinic)
-p1=p2 <- 1000
-p3 <- ncol(X)-p1-p2
-Xs <- list(Block1=X[,1:p1],Matrix2=X[,p1+1:p2],Other_Variables=X[,p1+p2+1:p3])
-Xs$Block1[1:10,] <- NA
-Xs$Matrix2[5+1:10,] <- NA
-Xs$Other_Variables[10+1:20,] <- NA
-
-model_multi_vizu <- mddsPLS(Xs,Y,lambda = 0.8,R = 3)
+print(sum0$R2Q2[,c(1,4)])
+print(sum_up$R2Q2[,c(1,4)])
 ```
 
+In that context, the sparse **ddsPLS** approach allows to get better prediction rate than the "non selection" **ddsPLS** model.
 
-### Plot Method {.tabset}
+### The **S3-method** ``plot``
 
-The **Plot** mehtod permits many types of representation. Among which
+It is also possible to plot different things thanks to the **plot** S3-method. In the representation with $\lambda$ in abscissa:
 
- * *weights* which shows all the weights under barplot representations. If **super** is set to **TRUE**, then the **super-weights** are represented. In the mono-block case, **super-weights** are equal to **weights**.
- * *heatmap* which shows the selected variables (for $\mathbf{X}$ and $\mathbf{Y}$) for the all individuals.
+* the $\bullet$ points correspond to $\lambda$ values for which the constraint of the optimization problem detailed in the section **Automatic tunning of the parameters** are active.
+* the large $\circ$ points  corresponds to the selected value.
 
-The following sections detailed the discussed method though those parametizations.
+The different values given to the argument ``type`` would give representation that helps the analyst concluding on the final quality of the model. The different values are
 
-#### *Scaled Super-Weight* representation {.tabset}
+* ``type="predict"`` to draw the predicted values of **y** against the observed. This can be useful to locate potential outliers (observations away from the distribution...) that would drive the model (... but close to the bisector).
+* ``type="criterion"`` to draw the values of the metrics $\bar{R}_{B}^2-\bar{Q}_{B}^2$. This is the optimized metrics.
+* ``type="Q2"`` to draw the $\bar{Q}_{B}^2$ metrics which represents the overall prediction quality of the build model, one component after another.
+* ``type="prop"`` to draw the proportion of bootstrap models with a positive $Q_{b,r}^2$, this $\forall b \in [\![1,B]\!]$. Since this is tricky to interpret negative values for $Q_{b,r}^2$ (apart from describing models which perform worse than the mean prediction model) negative values for $\bar{Q}_{B,r}^2$ is necessarily hardly interpretable. However, the proportion of models with positive $Q_{b,r}^2$ can be interpreted as a probability to finally build a model $\mathcal{P}$ with a positive $\gamma(\mathcal{P})$. This can be interesting to look at this metrics to interpret
+* ``type="weightX"`` or ``type="weightY"`` to draw the values of the weights for each component for the **X** block of for the **Y** block. If there is an _a priori_, such as a functional one, on the variables of **X** (resp. **Y**), this _a priori_ (which is not currently taken into account in the **ddsPLS** model) must certainly have an impact on the values of the weights parameters. This can be characterized by a structure of the weights on each component. In the opposite case, if the model is not enough sparse or too sparse, for example, the analyst is invited to modify the parameterization of the model, by limiting the grid of accessible $\lambda$ for example.
 
-The following figure permits to represent the *scaled super-weights* for blocks 1, 2 and block Y. **mar_left** parameter adds extra values on the left of the plot, usefull to see variable names. Only the first cuper-component is plotted.
+### Predicted versus observed values of the response
 
-```{r,fig.height=10,fig.width=13,dpi=DPI,out.width= out.width,out.height=out.height_2}
-plot(model_multi_vizu,vizu = "weights",super = T,comp=1 ,addY = T,
-     mar_left = 5,mar_bottom = 3,reorder_Y = T)
+Simply specifying ``type="predict"``.
+
+```{r est,fig.width=5,fig.height=5,fig.align="center"}
+plot(mo,type="predict",legend.position = "topleft")
+```
+Since the the variable $y_3$ has not been selected, its predicted values are constantly equal to the mean estimation. The two other columns of **Y** are described with more than 90% accuracy and no observation seems to guide the model at the expense of other observations. 
+
+### The criterion $\bar{R}_{B}^2-\bar{Q}_{B}^2$
+
+To plot the criterion, the **plot** argument type must be set to ``criterion``. It is possible to move the legend with the ``legend.position argument``.
+
+```{r criterion,fig.width=7,fig.height=5,fig.align="center",eval=F}
+plot(mo,type="criterion",legend.position = "top")
 ```
 
-<!-- ##### Super-Component 2 -->
-
-<!-- ```{r,fig.height=8,fig.width=13} -->
-<!-- plot(model_multi_vizu,vizu = "weights",super = T,comp=2 ,addY = T,mar_left = 5, -->
-<!--      mar_bottom = 3,reorder_Y = T) -->
-<!-- ``` -->
-
-<!-- ##### Super-Component 3 -->
-
-<!-- ```{r,fig.height=8,fig.width=13} -->
-<!-- plot(model_multi_vizu,vizu = "weights",super = T,comp=3 ,addY = T,mar_left = 5,mar_bottom=3,reorder_Y = T) -->
-<!-- ``` -->
-
-#### *Heatmap* representation {.tabset}
-
-Heatmap permit to appreciate the discriminative aspect of variables according to their individual representations. It has been decided to plot heatmaps component per component, only the first component in the case of that example.
-
-Each variable has been normalized separately. Dendrogram are used in the individual and in the variable directions using **hclust** similarities.
-
-```{r,dpi=DPI,out.width= out.width,out.height=out.height_2}
-plot(model_multi_vizu,vizu = "heatmap",comp = 1)
+```{r criterionhide,fig.width=7,fig.height=5,fig.align="center",echo=F}
+h_opt <- 2
+matplot(lambdas,R2mean_diff_Q2mean,type = "l",ylab="",xlab=expression(lambda),
+              main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
+for(s in 1:h_opt){
+  points(lambdas,R2mean_diff_Q2mean[,s],type = "p",pch=16,cex=lambda_optim[[s]],col=s)
+  points(lambdaSparse[s],R2mean_diff_Q2mean[which.min(abs(lambdas-lambdaSparse[s])),s],pch=1,cex=2,col=s)
+}
+legend("top",paste("Comp.",1:h_opt," (",round(mo$varExplained$Comp),"%)",sep=""),
+       col = 1:h_opt,pch=16,bty = "n",
+       title = paste("Total explained variance ",round(mo$varExplained$Cumu)[h_opt],"%",sep=""))
 ```
 
-### Summary Method
+The legend title gives the total explained variance by the model built on the two components while the legend itself gives the explained variance by each of the considered component.
 
-A *summary* method explains more precisely the model. 
+### The $\bar{Q}_{B}^2$ metrics
 
-```{r, fig.show='hold',message=FALSE,eval=T}
-summary(model_multi_vizu)
+the previous figure does not provide information on the prediction quality of the model. This information can be found using the same **S3-method** fixing the parameter type to ``type="Q2"``. 
+
+```{r Q2r,fig.width=7,fig.height=5,eval=F}
+plot(mo,type="Q2",legend.position = "bottomleft")
 ```
 
-### Get selected variables
-
-Output *var_selected* permits to get the selected varaibles per block.
-
-This is a list filled with \code{2R}-column matrices corresponding to the non nul coefficients of each block on the \emph{Super-Components}. They are ordered according to their absolute value on the first **Super-Component**, in a decreasing way. Only $2$ significance digits are kept here for convenience.
-
-Here is represented its value for the first block
-
-```{r}
-model_multi_vizu$var_selected[[1]]
+```{r Q2rhide,fig.width=7,fig.height=5,echo=F}
+h_opt <- 2
+matplot(lambdas,Q2mean,type = "l",ylab="",xlab=expression(lambda),
+              main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
+for(s in 1:h_opt){
+  points(lambdas,Q2mean[,s],type = "p",pch=16,cex=lambda_optim[[s]],col=s)
+  points(lambdaSparse[s],Q2mean[which.min(abs(lambdas-lambdaSparse[s])),s],pch=1,cex=2,col=s)
+}
+abline(h=0,lwd=2,lty=2)
+legend("bottomleft",paste("Comp.",1:h_opt," (",round(mo$varExplained$Comp),"%)",sep=""),
+       col = 1:h_opt,pch=16,bty = "n",
+       title = paste("Total explained variance ",round(mo$varExplained$Cumu)[h_opt],"%",sep=""))
 ```
 
-<!-- ## Simulation Model {.tabset} -->
+According to that figure it is clear that the chosen optimal model (minimizing $\bar{R}_{B}^2-\bar{Q}_{B}^2$) represents a model for which the $\bar{Q}_{B}^2$ on each of its component is not far from being maximum.
+
+### The proportion of informational bootstrap models
+
+```{r prop,fig.width=7,fig.height=5,fig.align="center",eval=F}
+plot(mo,type="prop",legend.position = "bottomleft")
+```
+
+```{r prophide,fig.width=7,fig.height=5,echo=F}
+h_opt <- 2
+# Plot of Prop of positive Q2h
+matplot(lambdas,PropQ2hPos,type = "l",ylab="",xlab=expression(lambda),
+        main=bquote("Proportion of models with positive"~Q["b,r"]^2))
+abline(h=((1:10)/10)[-5],col="gray80",lwd=0.5,lty=3)
+abline(h=5/10,col="gray60",lwd=0.7,lty=1)
+text(min(lambdas),1/2,labels = "1/2",pos = 4,col="gray40")
+for(s in 1:h_opt){
+  points(lambdas,PropQ2hPos[,s],type = "p",pch=16,cex=mo$lambda_optim[[s]],col=s)
+  points(lambdaSparse[s],PropQ2hPos[which.min(abs(lambdas-lambdaSparse[s])),s],pch=1,cex=2,col=s)
+}
+legend("bottomleft",paste("Comp.",1:h_opt," (",round(mo$varExplained$Comp),"%)",sep=""),
+       col = 1:h_opt,pch=16,bty = "n",
+       title = paste("Total explained variance ",round(mo$varExplained$Cumu)[h_opt],"%",sep=""))
+```
+
+#### Plot of the weights
+
+It is also possible to directly plot the values of the weights for each component. For the **Y** block and for the **X** block, such as
 
 
-<!-- In the following is considerd a simulated dataset to have an idea of the behavior of the method in the multi-block context with missing values. This part is based on the theoretical aspects of the methodology. -->
+```{r wy,fig.width=7,fig.height=3,fig.align="center"}
+plot(mo,type="weightY",mar=c(4,7,2,1))
+```
 
-<!-- ### Notations -->
+where it is clear that the first component explains $y_1$ while the second one explains $y_2$. Looking at the weights on the block **X**:
 
-<!-- According to what have been proposed in [@johnstone2004sparse], the following simulations follow the spike covariance models -->
+```{r wx2,fig.width=7,fig.height=3,fig.align="center"}
+plot(mo,type="weightX",cex.names = 0.5 )
+```
 
-<!-- $$\left\{\begin{aligned} -->
-<!-- {\bf X}_1&= {\bf L}{\bf \Omega}_1^{1/2}{\bf U}^T_{1,mod}+{\bf E}_1\\ -->
-<!-- &\vdots\\ -->
-<!-- {\bf X}_T&= {\bf L}{\bf \Omega}_T^{1/2}{\bf U}^T_{T,mod}+{\bf E}_T\\ -->
-<!-- {\bf Y}&= {\bf L}{\bf \Omega}_y^{1/2}{\bf V}^T_{mod}+{\bf E}_y\\ -->
-<!-- \end{aligned} -->
-<!-- \right.,$$ -->
-<!-- where $({\bf \Omega}_t)_{t=1\cdots T}$ and ${\bf \Omega}_y$ are $R$-dimensional diagonal matrices with strictly positive diagonal elements. $({\bf U}_{t,mod}\in\mathbb{R}^{p_t\times R})_{t=1\cdots T}$ and ${\bf V}_{mod}\in\mathbb{R}^{q\times R}$ are  matrices with orthonormal columns. ${\bf L}\in\mathbb{R}^{n\times R}$ is a matrix where elements are i.i.d. standard Gaussian random effects, $({\bf E}_t\in\mathbb{R}^{n\times p_t})_{t=1\cdots T}$ (respectively ${\bf E}_y\in\mathbb{R}^{n\times q}$) are matrices such that each row follows the standard multivariate normal distribution $(N_{p_t}(0,\mathbb{I}_{p_t}))_{t=1\cdots T}$ (respectively $N_q(0,\mathbb{I}_q)$) and the $n$ rows are independent and mutually independent noise vectors. Let us mention that the matrix ${\bf L}$ does not depend of $t$ and thus introduces a common structure between the ${\bf X}_t$'s and $\bf Y$ models. -->
+the variables $\mathbf{x}_{1\dots 50}$ (resp. $\mathbf{x}_{51\dots 75}$) are selected on the first (resp. second) component, which is associated only with $y_1$ (resp. $y_2$).
 
+<!-- ## A high correlated data-set -->
 
+<!-- We assume now $\alpha=0.8$ which corresponds to -->
+<!-- $$ -->
+<!-- \begin{array}{c l c c} -->
+<!-- & -->
+<!-- \mathbf{A} =\sqrt{1-\sigma^2} -->
+<!-- \left(\begin{array}{ccc} -->
+<!-- \boldsymbol{1}_{50}' & 0.89\cdot\boldsymbol{1}_{25}' & \boldsymbol{0}_{25}' & \boldsymbol{0}_{900}'\\ -->
+<!-- \boldsymbol{0}_{50}' & 0.45\cdot\boldsymbol{1}_{25}' & \boldsymbol{0}_{25}' & \boldsymbol{0}_{900}'\\ -->
+<!-- \boldsymbol{0}_{50}' & \boldsymbol{0}_{25}' &\boldsymbol{1}_{25}' &  \boldsymbol{0}_{900}'\\ -->
+<!-- \end{array} \right) -->
+<!-- \end{array} -->
+<!-- $$ -->
+<!-- where it is clear that the association of **x** with the second latent variable $\phi_2$ (second row of the previous matrix) is not as strong as the association with the first latent variable $\phi_1$ (first row). -->
 
-<!-- ### Fix the Parameters -->
-
-<!-- Usual parameters used to simulate datasets -->
-
-<!-- ```{r,fig.width=7, fig.height=6,message=FALSE,eval=F} -->
-<!-- n <- 50 # number of individuals -->
-<!-- R <- 5 # number of created dimensions in __L__ -->
-<!-- T_ <- 5 # number of blocks -->
-<!-- sd_error <- 0.1 # Standard-deviation of the spike-covariance model element matrices of $E_t$ and $E_y$ -->
-<!-- p_s <- sample(x = 100:200,size = T_,replace = T) # number of variables per block $X_t$ -->
-<!-- q <- 10  # number of variable in $Y$ -->
-<!-- R_real <- 3 # number of components of __L__ described in __Y__ -->
-<!-- p_missing <- 0.3 # the proportion of missing values -->
-<!-- ``` -->
-
-<!-- Possible values for $({\bf \Omega}_t^{1/2})_{t=1\cdots T}$ and ${\bf \Omega}_y^{1/2}$ diagonal elements are then chosen. It has been chosen to consider low elements, close to $0$, and high elements, $\approx 1$. -->
-<!-- ```{r,fig.width=7, fig.height=6,message=FALSE,eval=F} -->
-<!-- o_x <- seq(0,1,length.out = 1000) -->
-<!-- o_y <- (o_x-0.5)^2 -->
-<!-- o_y[which(o_y<0.2)] <- 0 # keep only low or high potential diagonal elements -->
-<!-- all_omegas <- sample(o_x,prob = o_y,size = R*T_) # Select R*T_ elements -->
-
-<!-- all_omegas_y <- sample(o_x,prob = o_y,size = R_real) # Select R_real elements -->
-<!-- Omegas_y <- diag(c(all_omegas_y,rep(0,R-R_real))) # Create the Omega_y diagonal matrix -->
-<!-- ``` -->
-
-
-
-<!-- ### Generate Covariate Dataset -->
-<!-- __Xs__ is a list of matrices corresponding to the defined spike-covariance model. -->
-<!-- ```{r,message=FALSE,eval=F} -->
-<!-- Xs <- list() -->
-<!-- L <- matrix(rnorm(n*R),nrow = n) -->
-<!-- for(k in 1:T_){ -->
-<!--     Omegas <- diag(all_omegas[1:R+(k-1)*R]) -->
-<!--     Us <- svd(matrix(rnorm(p_s[k]*n),nrow = n))$v[,1:R] -->
-<!--     E_k <- matrix(rnorm(n*p_s[k],sd = sd_error),nrow = n) -->
-<!--     Xs[[k]]<- scale(E_k + tcrossprod(L%*%Omegas,Us)) -->
+<!-- ```{r eval=F} -->
+<!-- eps <- 0.95 -->
+<!-- n <- 200 -->
+<!-- alpha <- 0.8 -->
+<!-- N <- 20 -->
+<!-- models <- list() -->
+<!-- for(i in 3:N){ -->
+<!--   datasCor <- getData(n=n,alpha=alpha,beta_0=0.1,sigma=sqrt(1-eps^2),p1=50,p2=25,p3=25,p=1000) -->
+<!--   models[[i]] <- ddsPLS(datasCor$X, datasCor$Y,lambdas = lambdas,n_B=n_B,NCORES=1,verbose = F) -->
+<!--   print("--------") -->
+<!--   print(i) -->
+<!--   print(models[[i]]$model$V) -->
 <!-- } -->
 <!-- ``` -->
 
-<!-- A proportion $p_{missing}$ of the data is missing, the following script permits to remove that proportion of samplestaking into account that a given participant must not be missing for all blocks. -->
-<!-- ```{r,message=FALSE,eval=F} -->
-<!-- values <- expand.grid(1:n,1:T_) -->
-<!-- values_id <- 1:(n*T_) -->
-<!-- probas <- rep(1,n*T_)/(n*T_) -->
-<!-- number_miss_samp <- floor(n*T_*p_missing) -->
-<!-- missin_samp <- matrix(NA,nrow = number_miss_samp,ncol = 2) -->
-<!-- for(sam in 1:number_miss_samp){ -->
-<!--   curr_id <- values_id[sample(values_id,size = 1,prob = probas)] -->
-<!--   missin_samp[sam,1] <- values[curr_id,1] -->
-<!--   missin_samp[sam,2] <- values[curr_id,2] -->
-<!--   probas[curr_id] <- 0 -->
-<!--   if(length(which(na.omit(missin_samp[,1])==missin_samp[sam,1]))==n){ -->
-<!--     probas[which(values[,1]==missin_samp[sam,1])] <- 0 -->
-<!--   } -->
-<!--   Xs[[missin_samp[sam,2]]][missin_samp[sam,1],] <- NA ## Remove individual value -->
-<!-- } -->
+<!-- ```{r eval=F, echo=F} -->
+<!-- save(moCor,file = "moCor.RData") -->
+<!-- ``` -->
 
+<!-- ```{r eval=T, echo=F} -->
+<!-- load("moCor.RData") -->
+<!-- ``` -->
+
+<!-- ```{r fig.width=5,fig.height=5,fig.align="center"} -->
+<!-- plot(moCor,type="predict",digits=1,legend.position = "topleft") -->
+<!-- moCor$varExplained$PerY -->
+<!-- ``` -->
+<!-- In that case $y_1$ and $y_2$ are also selected. -->
+
+<!-- ```{r fig.width=7,fig.height=3,fig.align="center"} -->
+<!-- plot(moCor,type="weightY") -->
+<!-- moCor$model$V -->
+<!-- ``` -->
+
+<!-- Let us look at the "Predicted versus Observed" plot. -->
+
+<!-- ```{r fig.width=7,fig.height=3,fig.align="center"} -->
+<!-- plot(moCor,type="weightX",cex.names = 0.5 ) -->
+<!-- setdiff(moCor$Selection$X,1:75) -->
 <!-- ``` -->
 
 
-
-<!-- ### Generate Response Matrix -->
-
-<!-- __Y__ is a matrix also corresponding to the defined spike-covariance model. -->
-
-<!-- ```{r,message=FALSE,eval=F} -->
-<!-- V <- svd(matrix(rnorm(q*n),nrow = n))$v[,1:R] -->
-<!-- E_y <- matrix(rnorm(q*n,sd = sd_error),nrow = n) -->
-<!-- Y <- tcrossprod(L%*%Omegas_y,V) -->
-<!-- Y <- scale(E_y + Y) -->
-<!-- ``` -->
-
-
-<!-- ### Build a model {.tabset} -->
-
-<!-- ```{r,echo=F} -->
-<!-- # save(Xs,Y,file="Xs_y_multi.RData") -->
-<!-- load("Xs_y_multi.RData") -->
-<!-- ``` -->
-
-<!-- A model is simply built as follows -->
-
-<!-- ```{r} -->
-<!-- model <- mddsPLS(Xs,Y,lambda = 0.75,R = 3,verbose = T) -->
-<!-- ``` -->
-
-
-<!-- #### Plot Method {.tabset} -->
-
-<!-- The **Plot** mehtod permits many types of representation. Among which -->
-
-<!--  * *weights* which shows all the weights under barplot representations. If **super** is set to **TRUE**, then the **super-weights** are represented. In the mono-block case, **super-weights** are equal to **weights**. -->
-<!--  * *heatmap* which shows the selected variables (for $\mathbf{X}$ and $\mathbf{Y}$) for the all individuals. -->
-
-<!-- The following sections detailed the discussed method though those parametizations. -->
-
-<!-- ##### *Scaled Super-Weight* representation {.tabset} -->
-
-<!-- The following figure permits to represent the *scaled super-weights* for blocks **X** and block **Y**. **mar_left** parameter adds extra values on the left of the plot, usefull to see variable names. -->
-
-<!-- ###### Super-Component 1 -->
-
-<!-- ```{r,fig.height=10,fig.width=10} -->
-<!-- plot(model,vizu = "weights",super = T, -->
-<!--      comp=1 ,addY = T,mar_left = 0) -->
-<!-- ``` -->
-
-<!-- ###### Super-Component 2 -->
-
-<!-- ```{r,fig.height=10,fig.width=10} -->
-<!-- plot(model,vizu = "weights",super = T, -->
-<!--      comp=2 ,addY = T,mar_left = 0) -->
-<!-- ``` -->
-
-<!-- ###### Super-Component 3 -->
-
-<!-- ```{r,fig.height=10,fig.width=10} -->
-<!-- plot(model,vizu = "weights",super = T, -->
-<!--      comp=3 ,addY = T,mar_left = 0) -->
-<!-- ``` -->
-
-
-
-<!-- ##### *Heatmap* representation {.tabset} -->
-
-<!-- Heatmap permit to appreciate the discriminative aspect of variables according to their individual representations. It has been decided to plot heatmaps component per component, first and second only here. -->
-
-<!-- ###### Super-Component 1 -->
-
-<!-- ```{r,fig.height=13} -->
-<!-- plot(model,vizu = "heatmap",comp = 1) -->
-<!-- ``` -->
-
-<!-- ###### Super-Component 2 -->
-
-<!-- ```{r,fig.height=13} -->
-<!-- plot(model,vizu = "heatmap",comp = 2) -->
-<!-- ``` -->
-
-<!-- Each variable has been normalized separately. Dendrogram are used in the individual and in the variable directions using **hclust** similarities. -->
-
-<!-- #### Summary Method -->
-
-<!-- A *summary* method explains more precisely the model. -->
-
-<!-- ```{r, fig.show='hold',message=FALSE,eval=T} -->
-<!-- summary(model,plot_present_indiv = T) -->
-<!-- ``` -->
-
-<!-- The package **eulerr** described in [@eulerrpackage], permits to visualize the missing values through Euler Diagramm such as follows -->
-
-<!-- In each area is detailed the number of individuals present. So **Block1** has $5$ missing samples in common with **Matrix2** and **Other_Variables** has $10$ missing samples which are present in the other matrices. -->
-
-
-<!-- ## Cross-validation {.tabset} -->
-
-<!-- The cross-validation process is started in a leave-one-out design along $R\in\{1,2,3\}$ dimensions. -->
-
-<!-- ```{r,message=FALSE,eval=F} -->
-<!-- n_lambda <- 20 -->
-<!-- NCORES <- 7 -->
-<!-- cross_valid <- perf_mddsPLS(Xs,Y,lambda_min = 0.2, -->
-<!--                             n_lambda = n_lambda, -->
-<!--                             R = 1,kfolds = "loo",NCORES = NCORES) -->
-<!-- cross_valid_2 <- perf_mddsPLS(Xs,Y,lambda_min = 0.2, -->
-<!--                             n_lambda = n_lambda, -->
-<!--                             R = 2,kfolds = "loo",NCORES = NCORES) -->
-<!-- cross_valid_3 <- perf_mddsPLS(Xs,Y,lambda_min = 0.2, -->
-<!--                             n_lambda = n_lambda, -->
-<!--                             R = 3,kfolds = "loo",NCORES = NCORES) -->
-<!-- ``` -->
-
-
-<!-- ```{r,echo=F} -->
-<!-- # save(cross_valid,cross_valid_2,cross_valid_3,file="cross_valid_multi.RData") -->
-<!-- load("cross_valid_multi_noXs.RData") -->
-<!-- cross_valid$Xs=cross_valid_3$Xs=cross_valid_3$Xs <- Xs -->
-<!-- cross_valid$Y=cross_valid_3$Y=cross_valid_3$Y <- Y -->
-<!-- ``` -->
-
-<!-- ### Comparison of Results for Varying *R* {.tabset} -->
-
-<!-- In the following we compare the results for the different values of $\lambda$, classically, but also $R$. -->
-
-<!-- #### One component {.tabset} -->
-
-<!-- ##### Error Plot -->
-
-<!-- ```{r,fig.width=12, fig.height=7} -->
-<!-- plot(cross_valid,plot_mean = T,ylim=c(0,1.2),no_occurence = T, -->
-<!--      which_sd_plot = c(3,5,6,8,10),alpha.f = 0.2, -->
-<!--      legend_names = 1:10,pos_legend="topleft") -->
-<!-- ``` -->
-
-<!-- ##### Summary Information -->
-
-<!-- ```{r} -->
-<!-- summary(cross_valid,plot_res_cv = F) -->
-<!-- ``` -->
-
-<!-- ##### Conclusion for One Component -->
-
-<!-- The error curves admit errors around $\lambda=0.4$ and almost all calculus have converged. -->
-
-
-<!-- #### Two components {.tabset} -->
-
-<!-- ##### Error Plot -->
-
-<!-- ```{r,fig.width=12, fig.height=7} -->
-<!-- plot(cross_valid_2,plot_mean = T,ylim=c(0,1.2),no_occurence = T, -->
-<!--      which_sd_plot = c(3,5,6,8,10),alpha.f = 0.2, -->
-<!--      legend_names = 1:10,pos_legend="topleft") -->
-<!-- ``` -->
-
-<!-- ##### Summary Information -->
-
-<!-- ```{r} -->
-<!-- summary(cross_valid_2,plot_res_cv = F) -->
-<!-- ``` -->
-
-<!-- ##### Conclusion for Two Components -->
-
-<!-- Errors are smaller for *low valued regularization coefficients* than in the case $R=1$. It means that the model can learn the general structure of the **Y** dataset. The **mean MSEP** is around $0.2$ in that region while it was around $0.5$ for the case $R=1$. -->
-
-<!-- For larger $\lambda$, it is interesting to notice that some variables are well predicted until $\lambda=0.75$. -->
-
-<!-- Looking at the **summary** shows that the algorithm found information almost all the time. -->
-
-
-<!-- #### Three components {.tabset} -->
-
-<!-- ##### Error Plot -->
-
-<!-- ```{r,fig.width=12, fig.height=7} -->
-<!-- plot(cross_valid_3,plot_mean = T,ylim=c(0,1.2),no_occurence = T, -->
-<!--      which_sd_plot = c(3,5,6,8,10),alpha.f = 0.2, -->
-<!--      legend_names = 1:10,pos_legend="topleft") -->
-<!-- ``` -->
-
-<!-- ##### Summary Information -->
-
-<!-- ```{r} -->
-<!-- summary(cross_valid_3,plot_res_cv = F) -->
-<!-- ``` -->
-
-<!-- ##### Conclusion for Three Components -->
-
-<!-- Most of the calculus for low $\lambda$ have not converged and the errors are not interestingly shrinked. -->
-
-<!-- One would say that there is no information in that third component. -->
-
-<!-- But for large values of $\lambda$, around $0.6$, the algorithm converges quite often and it seems that a group of $6$ variables is very finely predicted, while $2$ others are averagely predicted and the laste$2$ ones are poorly described. -->
-
-
-
-
-<!-- ### Conclusion of the Comparisons -->
-
-<!-- According to the previous part it seems interesting to fix -->
-
-<!--  * $R=2$ and low $\lambda$ permits to describe accurately the structure of the $\mathbf{Y}$ data set. -->
-
-<!--  * $R=3$ and $\lambda\approx0.6$ permits to more precisely predict $6$ variables and not the others. -->
-
-<!-- We will now build the corresponding models and see its specificities. -->
-
-
-
-
-<!-- ## Two Models, a General and a Specific {.tabset} -->
-
-<!-- In the following we have built the two models discussed before -->
-
-<!-- ### A General Model -->
-
-<!-- The one defined for $R=2$ and $\lambda\approx0.2$ which is built as follows -->
-
-<!-- ```{r} -->
-<!-- model_general <- mddsPLS(Xs,Y,R=2,lambda=0.2,verbose = T) -->
-<!-- ``` -->
-
-<!-- More precise information can be found using the summary method -->
-
-<!-- ```{r} -->
-<!-- summary(model_general) -->
-<!-- ``` -->
-
-<!-- The Euler diagramm represents the missing samples positions and overlappings among the different data sets. -->
-
-<!-- ### A Specific Model -->
-
-<!-- The one defined for $R=3$ and $\lambda\approx0.6$ which is built as follows -->
-
-<!-- ```{r} -->
-<!-- model_specific <- mddsPLS(Xs,Y,R=3,lambda=0.6,verbose = T) -->
-<!-- ``` -->
-
-<!-- More precise information can be found using the summary method -->
-
-<!-- ```{r} -->
-<!-- summary(model_specific) -->
-<!-- ``` -->
-
-<!-- The Euler diagramm represents the missing samples positions and overlappings among the different data sets. -->
-
-<!-- <i class="fa fa-exclamation-triangle fa-3x" aria-hidden="true"></i> **The Euler diagram problem becomes hard when the number of sets is to large and in those contexts can be wrong.** <i class="fa fa-exclamation-triangle fa-1x" aria-hidden="true"></i> -->
-
-<!-- Here blocks 1 and 2 are not selected and no more than $21$ variables is used per block. -->
-
-# References
+## Appendix
+
+### A.1  Definition of the "component-$r$ $\bar{Q}_B^2$" denoted $\bar{Q}_{B,r}^2$
+
+For a given bootstrap sample indexed by $b$, we define 
+$$
+\begin{array}{rccc}
+&Q^{2}_{b,r}  & = & 1-\dfrac{
+\left|\left|\mathbf{y}_{\text{OOB}(b)}
+-\hat{\mathbf{y}}_{\text{OOB}(b)}^{(r)}\right|\right|^2
+}{
+\left|\left|\mathbf{y}_{\text{OOB}(b)}
+-\bar{\mathbf{y}}_{\text{IN}(b)}^{(r-1)}\right|\right|^2
+},
+\end{array}
+$$
+
+where, $\hat{\mathbf{y}}_{\text{OOB}(b)}^{(r)}$ is the prediction of ${\mathbf{y}}_{\text{OOB}(b)}$ for the model built on $r$ components. The interpretation of this metrics is that if $Q^{2}_{b,r}>0$ then the $r$-components based model predicts better than the $r-1$-components based model. Naturally, the aggregated version of this metrics is
+
+$$
+\bar{Q}^{2}_{B,r}=\frac{1}{B}\sum_{b=1}^{B}Q^2_{b,r}
+$$
+
+### A.2 Function to simulate the high-dimensional data sets
+
+We propose the following function
+
+```{r getData2,echo=T}
+getData
+```
+
+where the output is a list of two matrices **X** and **Y**.
+
+
+
+### A.3  Definitions of the explained variances...
+
+#### A.3.1 Cumulated
+
+For a model built on $R$ components
+
+$$
+\begin{array}{rccc}
+&\text{ExpVar}_{1:R}  & = & 
+\left(1-\frac{1}{n}\sum_{i=1}^n\dfrac{
+\left|\left|\mathbf{y}_i
+-\hat{\mathbf{y}}^{(1:R)}_i\right|\right|^2
+}{
+\left|\left|\mathbf{y}_i
+-\boldsymbol{\mu}_{\mathbf{y}}\right|\right|^2
+}
+\right)*100,
+\end{array}
+$$
+
+where 
+
+$$
+\hat{\mathbf{y}}^{(1:R)}
+=
+\left(
+\mathbf{X}-\boldsymbol{\mu}_{\mathbf{x}}
+\right)
+\mathbf{U}_{(1:R)}\left(\mathbf{P}_{(1:R)}'\mathbf{U}_{(1:R)}\right)^{-1}\mathbf{C}_{(1:R)}
++
+\boldsymbol{\mu}_{\mathbf{y}},
+$$
+ and $\mathbf{U}_{(1:R)}$ is the concatenation of the $R$ weights, $\mathbf{P}_{(1:R)}$ is the concatenation of the $R$ scores $\mathbf{p}_r=\mathbf{X}^{(r)'}\mathbf{t}_r/\mathbf{t}_r'\mathbf{t}_r$ and $\mathbf{C}_{(1:R)}$ is the concatenation of the $R$ scores $\mathbf{c}_r=\boldsymbol{\Pi}_r\mathbf{Y}^{(r)'}\mathbf{t}_r/\mathbf{t}_r'\mathbf{t}_r$. The deflated matrices are defined such as
+$$
+\mathbf{X}{^{(r+1)}} =\mathbf{X}^{(r)}-\mathbf{t}_r\mathbf{p}_r',\ \mathbf{Y}{^{(r+1)}} = \mathbf{Y}{^{(r)}} - \mathbf{t}_r\mathbf{c}_r',
+$$
+and $\boldsymbol{\Pi}_r$ is the diagonal matrix with 1 element if the associated response variable is selected and 0 elsewhere. Also, $\boldsymbol{\mu}_{\mathbf{y}}$ and $\boldsymbol{\mu}_{\mathbf{x}}$ are the estimated mean matrices.
+
+##### A.3.2 Per component
+
+$$
+\begin{array}{rccc}
+&\text{ExpVar}_{R}  & = & 
+\left(1-\frac{1}{n}\sum_{i=1}^n\dfrac{
+\left|\left|\mathbf{y}_i
+-\hat{\mathbf{y}}^{(R)}_i\right|\right|^2
+}{
+\left|\left|\mathbf{y}_i
+-\boldsymbol{\mu}_{\mathbf{y}}\right|\right|^2
+}
+\right)*100,
+\end{array}
+$$
+
+##### A.3.3 Per response variable
+
+$$
+\begin{array}{rccc}
+&\text{ExpVar}_{1:R}^{(j)}  & = &
+\left( 1-\frac{1}{n}\sum_{i=1}^n\dfrac{
+\left|\left|y_{i,j}
+-\hat{{y}}^{(1:R)}_{i,j}\right|\right|^2
+}{
+\left|\left|{y}_{i,j}
+-{\mu}_{{y}_j}\right|\right|^2
+}
+\right)*100,
+\end{array}
+$$
+
+##### A.3.4 Per response variable per component
+
+$$
+\begin{array}{rccc}
+&\text{ExpVar}_{R}^{(j)}  & = & 
+\left(
+1-\frac{1}{n}\sum_{i=1}^n\dfrac{
+\left|\left|y_{i,j}
+-\hat{{y}}^{(R)}_{i,j}\right|\right|^2
+}{
+\left|\left|{y}_{i,j}
+-{\mu}_{{y}_j}\right|\right|^2
+}
+\right)*100,
+\end{array}
+$$
