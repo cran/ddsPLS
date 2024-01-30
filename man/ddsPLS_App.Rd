@@ -7,10 +7,10 @@
 ddsPLS_App(...)
 }
 \arguments{
-\item{...}{No parameter is needed explicitly for this app.}
+\item{...}{Same parameters as ddsPLS}
 }
 \value{
-Nothing due to the nature of the applet.
+Mainly visual objects, also possible to save plots
 }
 \description{
 Applet to start ddsPLS

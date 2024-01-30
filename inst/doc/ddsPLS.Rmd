@@ -5,7 +5,7 @@ description: >
 output:
   rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Data-Driven Sparse PLS 2 (ddsPLS)}
+  %\VignetteIndexEntry{Data-Driven Sparse PLS (ddsPLS)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,13 +15,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
-
-```{r setup}
-library(ddsPLS)
-```
-
-```{r, include = FALSE}
 
 getData <- function(n=100,alpha=0.4,beta_0=0.2,sigma=0.3,
                     p1=50,p2=25,p3=25,p=1000){
@@ -31,18 +24,18 @@ getData <- function(n=100,alpha=0.4,beta_0=0.2,sigma=0.3,
     c(rep(1/sqrt(R1),p1),rep(sqrt(alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
     c(rep(0,p1),rep(sqrt(1-alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
     c(rep(0,p1),rep(0,p2),rep(1,p3),rep(0,p-p1-p2-p3))
-  ),nrow = d,byrow = T)
+  ),nrow = d,byrow = TRUE)
   A <- eps*A0
   D0 <- matrix(c(1,0,0,
                  sqrt(beta_0),sqrt(1-beta_0),0,
-                 0,0,0),nrow = d,byrow = F)
+                 0,0,0),nrow = d,byrow = FALSE)
   D <- eps*D0
   q <- ncol(D)
   L_total <- q+p
-  psi <- matrix(rnorm((d+L_total)*n,mean = 0,1),n)
+  psi <- MASS::mvrnorm(n,mu = rep(0,d+L_total),Sigma = diag(d+L_total))
   phi <- psi[,1:d,drop=F]
-  errorX <- matrix(rep(sqrt(1-apply(A^2,2,sum)),n),n,byrow = T)
-  errorY <- matrix(rep(sqrt(1-apply(D^2,2,sum)),n),n,byrow = T)
+  errorX <- matrix(rep(sqrt(1-apply(A^2,2,sum)),n),n,byrow = TRUE)
+  errorY <- matrix(rep(sqrt(1-apply(D^2,2,sum)),n),n,byrow = TRUE)
   X <- phi%*%A + errorX*psi[,d+1:p,drop=F]
   Y <- phi%*%D + errorY*psi[,d+p+1:q,drop=F]
   list(X=X,Y=Y)
@@ -241,12 +234,12 @@ The package depends on a low number of low level packages. They are of two types
 
 * $\mathbf{C}^{++}$-developer packages: ``Rcpp`` (for basic $\mathbf{C}^{++}$ development) and ``RcppEigen`` (for inner mathematical operations).
 
-```{r loadPAckage,eval=F}
+```{r loadPAckage,eval=FALSE}
 devtools::install_github("hlorenzo/ddsPLS")
 library(ddsPLS)
 ```
 
-```{r loadPAckage2,echo=F}
+```{r loadPAckage2,echo=FALSE}
 library(ddsPLS)
 ```
 
@@ -341,38 +334,38 @@ The function ``getData``, printed in **Appendix A.2** allows to simulate a coupl
 
 We assume that $\alpha=0.1$ and we simulate the data thanks to the function given in **Appendix A.2**. For this simulation, a sample of $n=200$ observations is chosen
 
-```{r noCor, eval=T}
+```{r noCor, eval=TRUE}
 eps <- 0.95
-n <- 100
+n <- 200
 alpha <- 0.1
 datas <- getData(n=n,alpha=alpha,beta_0=0.1,sigma=sqrt(1-eps^2),
-                 p1=50,p2=25,p3=25,p=300)
+                 p1=50,p2=25,p3=25,p=1000)
 ```
 
-It is also a necessity to fix the grid of $\lambda$, denoted as $\Lambda$ in the previous section and ``lambdas`` in the following. Also the number ``n_B`` of bootstrap samples is chosen, fixed to 20.
+It is also a necessity to fix the grid of $\lambda$, denoted as $\Lambda$ in the previous section and ``lambdas`` in the following. Also the number ``n_B`` of bootstrap samples is chosen, fixed to 200 to get smooth curves.
 
-```{r noCor2, eval=T}
+```{r noCor2, eval=TRUE}
 lambdas <- seq(0,1,length.out = 30)
-n_B <- 20
+n_B <- 200
 ```
 
 Finally we have chosen to build the model working on ``NCORES=4`` CPUs.
 
-```{r noCor3, eval=F}
+```{r noCor3, eval=FALSE}
 NCORES <- 4
 mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdas,
-              n_B=n_B,NCORES=NCORES,verbose = F)
+              n_B=n_B,NCORES=NCORES,verbose = FALSE)
 ```
 
-```{r noCor3hide, echo=F}
+```{r noCor3hide, echo=FALSE}
 mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdaSparse,
-              n_B=n_B,NCORES=1,verbose = F)
+              n_B=n_B,NCORES=1,verbose = FALSE)
 ```
 
 Once the model is built, it is easy to check its performance thanks to the **summary** S3-method.
 
 ```{r summ}
-sum_up <- summary(mo,return = T)
+sum_up <- summary(mo,return = TRUE)
 ```
 
 A $2$-components model has been built and different metrics are detailed. We can discuss different points:
@@ -392,18 +385,18 @@ setdiff(1:75,mo$Selection$X)
 ### Compare with "non selection" **ddsPLS** model
 
 As a popint of comparison, we can build the **ddsPLS** model for which $\Lambda=\{0\}$ and look at its prediction performances, through the $\bar{Q}_B^2$ statistics.
-```{r noCor30, eval=F}
+```{r noCor30, eval=FALSE}
 mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
-               n_B=n_B,NCORES=NCORES,verbose = F)
-sum0 <- summary(mo0,return = T)
+               n_B=n_B,NCORES=NCORES,verbose = FALSE)
+sum0 <- summary(mo0,return = TRUE)
 print(sum0$R2Q2[,c(1,4)])
 ```
 
 
 ```{r}
 mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
-               n_B=n_B,NCORES=1,verbose = F)
-sum0 <- summary(mo0,return = T)
+               n_B=n_B,NCORES=1,verbose = FALSE)
+sum0 <- summary(mo0,return = TRUE)
 ```
 
 It is possible to compare the prediction qualities of the two models using
@@ -443,11 +436,11 @@ Since the the variable $y_3$ has not been selected, its predicted values are con
 
 To plot the criterion, the **plot** argument type must be set to ``criterion``. It is possible to move the legend with the ``legend.position argument``.
 
-```{r criterion,fig.width=7,fig.height=5,fig.align="center",eval=F}
+```{r criterion,fig.width=7,fig.height=5,fig.align="center",eval=FALSE}
 plot(mo,type="criterion",legend.position = "top")
 ```
 
-```{r criterionhide,fig.width=7,fig.height=5,fig.align="center",echo=F}
+```{r criterionhide,fig.width=7,fig.height=5,fig.align="center",echo=FALSE}
 h_opt <- 2
 matplot(lambdas,R2mean_diff_Q2mean,type = "l",ylab="",xlab=expression(lambda),
               main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
@@ -466,11 +459,11 @@ The legend title gives the total explained variance by the model built on the tw
 
 the previous figure does not provide information on the prediction quality of the model. This information can be found using the same **S3-method** fixing the parameter type to ``type="Q2"``. 
 
-```{r Q2r,fig.width=7,fig.height=5,eval=F}
+```{r Q2r,fig.width=7,fig.height=5,eval=FALSE}
 plot(mo,type="Q2",legend.position = "bottomleft")
 ```
 
-```{r Q2rhide,fig.width=7,fig.height=5,echo=F}
+```{r Q2rhide,fig.width=7,fig.height=5,echo=FALSE}
 h_opt <- 2
 matplot(lambdas,Q2mean,type = "l",ylab="",xlab=expression(lambda),
               main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
@@ -488,11 +481,11 @@ According to that figure it is clear that the chosen optimal model (minimizing $
 
 ### The proportion of informational bootstrap models
 
-```{r prop,fig.width=7,fig.height=5,fig.align="center",eval=F}
+```{r prop,fig.width=7,fig.height=5,fig.align="center",eval=FALSE}
 plot(mo,type="prop",legend.position = "bottomleft")
 ```
 
-```{r prophide,fig.width=7,fig.height=5,echo=F}
+```{r prophide,fig.width=7,fig.height=5,echo=FALSE}
 h_opt <- 2
 # Plot of Prop of positive Q2h
 matplot(lambdas,PropQ2hPos,type = "l",ylab="",xlab=expression(lambda),
@@ -542,7 +535,7 @@ the variables $\mathbf{x}_{1\dots 50}$ (resp. $\mathbf{x}_{51\dots 75}$) are sel
 <!-- $$ -->
 <!-- where it is clear that the association of **x** with the second latent variable $\phi_2$ (second row of the previous matrix) is not as strong as the association with the first latent variable $\phi_1$ (first row). -->
 
-<!-- ```{r eval=F} -->
+<!-- ```{r eval=FALSE} -->
 <!-- eps <- 0.95 -->
 <!-- n <- 200 -->
 <!-- alpha <- 0.8 -->
@@ -550,18 +543,18 @@ the variables $\mathbf{x}_{1\dots 50}$ (resp. $\mathbf{x}_{51\dots 75}$) are sel
 <!-- models <- list() -->
 <!-- for(i in 3:N){ -->
 <!--   datasCor <- getData(n=n,alpha=alpha,beta_0=0.1,sigma=sqrt(1-eps^2),p1=50,p2=25,p3=25,p=1000) -->
-<!--   models[[i]] <- ddsPLS(datasCor$X, datasCor$Y,lambdas = lambdas,n_B=n_B,NCORES=1,verbose = F) -->
+<!--   models[[i]] <- ddsPLS(datasCor$X, datasCor$Y,lambdas = lambdas,n_B=n_B,NCORES=1,verbose = FALSE) -->
 <!--   print("--------") -->
 <!--   print(i) -->
 <!--   print(models[[i]]$model$V) -->
 <!-- } -->
 <!-- ``` -->
 
-<!-- ```{r eval=F, echo=F} -->
+<!-- ```{r eval=FALSE, echo=FALSE} -->
 <!-- save(moCor,file = "moCor.RData") -->
 <!-- ``` -->
 
-<!-- ```{r eval=T, echo=F} -->
+<!-- ```{r eval=TRUE, echo=FALSE} -->
 <!-- load("moCor.RData") -->
 <!-- ``` -->
 
@@ -611,7 +604,7 @@ $$
 
 We propose the following function
 
-```{r getData2,echo=T}
+```{r getData2,echo=TRUE}
 getData
 ```
 

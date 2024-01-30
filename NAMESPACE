@@ -1,23 +1,21 @@
+S3method(plot,ddsPLS)
+S3method(predict,ddsPLS)
+S3method(print,ddsPLS)
+S3method(summary,ddsPLS)
 export(ddsPLS)
 export(ddsPLS_App)
-S3method(plot, ddsPLS)
-S3method(predict, ddsPLS)
-S3method(summary, ddsPLS)
-S3method(print, ddsPLS)
-useDynLib(ddsPLS, .registration=TRUE)
-importFrom(Rcpp,evalCpp)
-importFrom(parallel,makeCluster,stopCluster)
-importFrom(doParallel,registerDoParallel)
-importFrom(foreach,"%dopar%","%do%",foreach)
-importFrom(graphics, abline, axis, barplot, layout, legend,
-           matplot, par, points, text, image, title)
-importFrom(stats, cor, cov, density, rnorm, var, predict, sd)
-importFrom(utils, head, read.csv)
-importFrom(shiny,fluidPage,navbarPage,tabPanel,titlePanel,
-           sidebarLayout,sidebarPanel,h2,fileInput,actionButton,
-           icon,tags,h3,textInput,numericInput,tableOutput,
-           mainPanel,tabsetPanel,checkboxInput,radioButtons,
-           textOutput,selectInput,plotOutput,verbatimTextOutput,br,
-           reactive,eventReactive,safeError,renderText,renderTable,
-           updateSelectInput,renderPlot,req,renderPrint,shinyApp)
-exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp, evalCpp)
+importFrom(foreach,"%do%")
+importFrom(foreach,"%dopar%")
+importFrom("graphics", "abline", "axis", "barplot", "image", "legend","matplot",
+           "par", "points", "text", "title")
+importFrom("stats", "cor", "cov", "density", "predict", "rnorm", "sd","var")
+importFrom("utils", "head", "read.csv")
+importFrom("RColorBrewer", "brewer.pal")
+importFrom("shiny","actionButton","br","checkboxInput","eventReactive","fileInput","fluidPage","h2","h3","icon","mainPanel","navbarPage","numericInput","plotOutput","radioButtons","reactive","renderPlot","renderPrint","renderTable","renderText","req","safeError","selectInput","shinyApp","sidebarLayout","sidebarPanel","tabPanel","tableOutput","tabsetPanel","tags","textInput","textOutput","titlePanel","updateSelectInput","verbatimTextOutput")
+importFrom(graphics,layout)
+importFrom(foreach,foreach)
+importFrom(parallel,makeCluster)
+importFrom(parallel, stopCluster)
+importFrom(doParallel, registerDoParallel)
+useDynLib(ddsPLS)

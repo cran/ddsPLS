@@ -117,6 +117,7 @@ oneComponent do_one_componentCpp(const Eigen::MatrixXd x0,const Eigen::MatrixXd 
   Eigen::VectorXd V_svd = Eigen::VectorXd::Zero(q);
   Eigen::VectorXd t = Eigen::VectorXd::Zero(n);
   double coefIJ=0.0,value=0.0;
+  double mu=1.0;
   int countY = 0u;
   int countX = 0u;
   if (countNoNullY>0){
@@ -514,7 +515,7 @@ ddsPLSCpp bootstrap_pls_CT_Cpp(const Eigen::MatrixXd X_init,const Eigen::MatrixX
 
   Eigen::VectorXd vars_expl(N_simu_lams), vars_expl_h(N_simu_lams), Q2(N_simu_lams), Q2_all(N_simu_lams);
   for (int iLam = 0u; iLam < N_simu_lams; ++iLam){
-    if ( (test_previous_ok==true) & (lambdas(iLam)>=lambda0(r)) ) {
+    if (((test_previous_ok==true) & (lambdas(iLam)>=lambda0(r)))) {
       lam_r(0) = lambdas(iLam);
       if (doBoot == false){
         lam_r(0) = lambdas(0);
@@ -631,47 +632,32 @@ ddsPLSCpp bootstrap_pls_CT_Cpp(const Eigen::MatrixXd X_init,const Eigen::MatrixX
 //' @param n The number of observations.
 //' @param p The number of variables of X part.
 //' @param q The number of variables of Y part.
-//' @param lambda0 The lowest value to be tested for lambda.
-//'
-//' @return A list containing the PLS parameters:
-//' \itemize{
-//'   \item \code{$P}: Loadings for \code{X}.
-//'   \item \code{$C}: Loadings for \code{Y}.
-//'   \item \code{$t}: Scores.
-//'   \item \code{$V}: Weights for \code{Y}.
-//'   \item \code{$U}: Loadings for \code{X}.
-//'   \item \code{$U_star}: Loadings for \code{X} in original base: $U_star=U(P'U)^{-1}$.
-//'   \item \code{$B}: Regression matrix of \code{Y} on \code{X}.
-//'   \item \code{$muY}: Empirical mean of \code{Y}.
-//'   \item \code{$muX}: Empirical mean of \code{X}.
-//'   \item \code{$sdY}: Empirical standard deviation of \code{Y}.
-//'   \item \code{$sdX}: Empirical standard deviation of \code{X}.
-//'}
+//' @param lambda0 The vector of regulation parameters.
 //'
 // [[Rcpp::export]]
-Rcpp::List  modelddsPLSCpp_Rcpp(const Eigen::MatrixXd U,const Eigen::MatrixXd V,
-                                const Eigen::MatrixXd X, const Eigen::MatrixXd Y,
-                                const Eigen::VectorXd lambdas,const int R,
-                                const int n,const int p,const int q,
-                                const Eigen::VectorXd lambda0){
-  Eigen::VectorXd lambda_prev(R-1);
-  for (int r = 0u; r < R-1; ++r) {
-    lambda_prev(r) = lambdas(r);
-  }
-  Eigen::VectorXd lambda_next(1);
-  lambda_next(0) = lambdas(R-1);
-  ddsPLSCpp res = bootstrap_pls_CT_Cpp(X,Y,lambda_next,lambda_prev,
-                                       U,V,n,p,q,1,lambda0,false,R);
-  Rcpp::List out;
-  out["P"] = res.P;
-  out["C"] = res.C;
-  out["t"] = res.t;
-  out["V"] = res.V;
-  out["U"] = res.U;
-  out["U_star"] = res.U_star;
-  out["B"] = res.B;
-  return out;
-}
+ Rcpp::List  modelddsPLSCpp_Rcpp(const Eigen::MatrixXd U,const Eigen::MatrixXd V,
+                                 const Eigen::MatrixXd X, const Eigen::MatrixXd Y,
+                                 const Eigen::VectorXd lambdas,const int R,
+                                 const int n,const int p,const int q,
+                                 const Eigen::VectorXd lambda0){
+   Eigen::VectorXd lambda_prev(R-1);
+   for (int r = 0u; r < R-1; ++r) {
+     lambda_prev(r) = lambdas(r);
+   }
+   Eigen::VectorXd lambda_next(1);
+   lambda_next(0) = lambdas(R-1);
+   ddsPLSCpp res = bootstrap_pls_CT_Cpp(X,Y,lambda_next,lambda_prev,
+                                        U,V,n,p,q,1,lambda0,false,R);
+   Rcpp::List out;
+   out["P"] = res.P;
+   out["C"] = res.C;
+   out["t"] = res.t;
+   out["V"] = res.V;
+   out["U"] = res.U;
+   out["U_star"] = res.U_star;
+   out["B"] = res.B;
+   return out;
+ }
 
 //' @title C++ implementation of the bootstrap operations
 //' @description
@@ -690,57 +676,55 @@ Rcpp::List  modelddsPLSCpp_Rcpp(const Eigen::MatrixXd U,const Eigen::MatrixXd V,
 //' @param p The number of variables of X part.
 //' @param q The number of variables of Y part.
 //' @param N_lambdas The number of to be tested values for lambda.
-//' @param lambda0 The minimum value to be checked in lambdas.
-//'
-//' @return The bootstrapped statistics
+//' @param lambda0 The vector of lambda0
 //'
 // [[Rcpp::export]]
-Rcpp::List  bootstrap_Rcpp(const Eigen::MatrixXd U,const Eigen::MatrixXd V,
-                           const Eigen::MatrixXd X,const Eigen::MatrixXd Y,
-                           const Eigen::VectorXd lambdas,const Eigen::VectorXd lambda_prev,
-                           const int R,const int n_B,const bool doBoot,
-                           const int n,const int p,const int q,const int N_lambdas,
-                           const Eigen::VectorXd lambda0){
-  Eigen::MatrixXd R2 = Eigen::MatrixXd(n_B,N_lambdas);
-  Eigen::MatrixXd R2h = Eigen::MatrixXd(n_B,N_lambdas);
-  Eigen::MatrixXd Q2 = Eigen::MatrixXd(n_B,N_lambdas);
-  Eigen::MatrixXd Q2h = Eigen::MatrixXd(n_B,N_lambdas);
-  Eigen::MatrixXd Uout = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
-  Eigen::MatrixXd tt = Eigen::MatrixXd::Zero(n_B,N_lambdas*n);
-  Eigen::MatrixXd Ustarout = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
-  Eigen::MatrixXd Vout = Eigen::MatrixXd::Zero(n_B,N_lambdas*q);
-  Eigen::MatrixXd P = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
-  Eigen::MatrixXd C = Eigen::MatrixXd::Zero(n_B,N_lambdas*q);
-  Eigen::MatrixXd B = Eigen::MatrixXd::Zero(N_lambdas*p,q*n_B);
-  // Rcpp::List B;
-  ddsPLSCpp res;
-  for (int i = 0u; i < n_B; ++i) {
-    res = bootstrap_pls_CT_Cpp(X,Y,lambdas,lambda_prev,U,V,n,p,q,N_lambdas,lambda0,doBoot,R);
-    R2.block(i,0,1,N_lambdas) = res.R2.transpose();
-    R2h.block(i,0,1,N_lambdas) = res.R2h.transpose();
-    Q2.block(i,0,1,N_lambdas) = res.Q2.transpose();
-    Q2h.block(i,0,1,N_lambdas) = res.Q2h.transpose();
-    tt.block(i,0,1,n*N_lambdas) = res.t.transpose();
-    Uout.block(i,0,1,p*N_lambdas) = res.U.transpose();
-    Ustarout.block(i,0,1,p*N_lambdas) = res.U_star.transpose();
-    Vout.block(i,0,1,q*N_lambdas) = res.V.transpose();
-    P.block(i,0,1,p*N_lambdas) = res.P.transpose();
-    C.block(i,0,1,q*N_lambdas) = res.C.transpose();
-    B.block(0,i*q,p*N_lambdas,q) = res.B;
-  }
-  Rcpp::List out;
-  out["R2"] = R2;
-  out["R2h"] = R2h;
-  out["Q2"] = Q2;
-  out["Q2h"] = Q2h;
-  out["lambdas"] = lambdas;
-  out["t"] = tt;
-  out["U"] = Uout;
-  out["U_star"] = Ustarout;
-  out["V"] = Vout;
-  out["P"] = P;
-  out["C"] = C;
-  out["B"] = B;
-  out["lambdas"] = lambdas;
-  return out;
-}
+ Rcpp::List  bootstrap_Rcpp(const Eigen::MatrixXd U,const Eigen::MatrixXd V,
+                            const Eigen::MatrixXd X,const Eigen::MatrixXd Y,
+                            const Eigen::VectorXd lambdas,const Eigen::VectorXd lambda_prev,
+                            const int R,const int n_B,const bool doBoot,
+                            const int n,const int p,const int q,const int N_lambdas,
+                            const Eigen::VectorXd lambda0){
+   Eigen::MatrixXd R2 = Eigen::MatrixXd(n_B,N_lambdas);
+   Eigen::MatrixXd R2h = Eigen::MatrixXd(n_B,N_lambdas);
+   Eigen::MatrixXd Q2 = Eigen::MatrixXd(n_B,N_lambdas);
+   Eigen::MatrixXd Q2h = Eigen::MatrixXd(n_B,N_lambdas);
+   Eigen::MatrixXd Uout = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
+   Eigen::MatrixXd tt = Eigen::MatrixXd::Zero(n_B,N_lambdas*n);
+   Eigen::MatrixXd Ustarout = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
+   Eigen::MatrixXd Vout = Eigen::MatrixXd::Zero(n_B,N_lambdas*q);
+   Eigen::MatrixXd P = Eigen::MatrixXd::Zero(n_B,N_lambdas*p);
+   Eigen::MatrixXd C = Eigen::MatrixXd::Zero(n_B,N_lambdas*q);
+   Eigen::MatrixXd B = Eigen::MatrixXd::Zero(N_lambdas*p,q*n_B);
+   // Rcpp::List B;
+   ddsPLSCpp res;
+   for (int i = 0u; i < n_B; ++i) {
+     res = bootstrap_pls_CT_Cpp(X,Y,lambdas,lambda_prev,U,V,n,p,q,N_lambdas,lambda0,doBoot,R);
+     R2.block(i,0,1,N_lambdas) = res.R2.transpose();
+     R2h.block(i,0,1,N_lambdas) = res.R2h.transpose();
+     Q2.block(i,0,1,N_lambdas) = res.Q2.transpose();
+     Q2h.block(i,0,1,N_lambdas) = res.Q2h.transpose();
+     tt.block(i,0,1,n*N_lambdas) = res.t.transpose();
+     Uout.block(i,0,1,p*N_lambdas) = res.U.transpose();
+     Ustarout.block(i,0,1,p*N_lambdas) = res.U_star.transpose();
+     Vout.block(i,0,1,q*N_lambdas) = res.V.transpose();
+     P.block(i,0,1,p*N_lambdas) = res.P.transpose();
+     C.block(i,0,1,q*N_lambdas) = res.C.transpose();
+     B.block(0,i*q,p*N_lambdas,q) = res.B;
+   }
+   Rcpp::List out;
+   out["R2"] = R2;
+   out["R2h"] = R2h;
+   out["Q2"] = Q2;
+   out["Q2h"] = Q2h;
+   out["lambdas"] = lambdas;
+   out["t"] = tt;
+   out["U"] = Uout;
+   out["U_star"] = Ustarout;
+   out["V"] = Vout;
+   out["P"] = P;
+   out["C"] = C;
+   out["B"] = B;
+   out["lambdas"] = lambdas;
+   return out;
+ }

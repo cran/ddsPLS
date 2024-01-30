@@ -25,23 +25,7 @@ modelddsPLSCpp_Rcpp(U, V, X, Y, lambdas, R, n, p, q, lambda0)
 
 \item{q}{The number of variables of Y part.}
 
-\item{lambda0}{The lowest value to be tested for lambda.}
-}
-\value{
-A list containing the PLS parameters:
-\itemize{
-  \item \code{$P}: Loadings for \code{X}.
-  \item \code{$C}: Loadings for \code{Y}.
-  \item \code{$t}: Scores.
-  \item \code{$V}: Weights for \code{Y}.
-  \item \code{$U}: Loadings for \code{X}.
-  \item \code{$U_star}: Loadings for \code{X} in original base: $U_star=U(P'U)^{-1}$.
-  \item \code{$B}: Regression matrix of \code{Y} on \code{X}.
-  \item \code{$muY}: Empirical mean of \code{Y}.
-  \item \code{$muX}: Empirical mean of \code{X}.
-  \item \code{$sdY}: Empirical standard deviation of \code{Y}.
-  \item \code{$sdX}: Empirical standard deviation of \code{X}.
-}
+\item{lambda0}{The vector of regulation parameters.}
 }
 \description{
 Build a ddsPLS model once the bootstrap operations has allowed to find a correct lambda.

@@ -1,0 +1,8 @@
+bibentry(bibtype = "Article",
+         title = "Supervised Learning for Multi-Block Incomplete Data",
+         author = c(person("Hadrien", "Lorenzo"),
+                    person("Jerome", "Saracco"),
+                    person("Rodolphe", "Thiebaut")),
+         year = "2019",
+         journal = "arXiv preprint arXiv:1901.04380",
+         url = "http://arxiv.org/abs/1901.04380")

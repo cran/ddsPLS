@@ -1,13 +1,8 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-
-## ----setup--------------------------------------------------------------------
-library(ddsPLS)
-
-## ---- include = FALSE---------------------------------------------------------
 
 getData <- function(n=100,alpha=0.4,beta_0=0.2,sigma=0.3,
                     p1=50,p2=25,p3=25,p=1000){
@@ -17,18 +12,18 @@ getData <- function(n=100,alpha=0.4,beta_0=0.2,sigma=0.3,
     c(rep(1/sqrt(R1),p1),rep(sqrt(alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
     c(rep(0,p1),rep(sqrt(1-alpha),p2),rep(0,p3),rep(0,p-p1-p2-p3)),
     c(rep(0,p1),rep(0,p2),rep(1,p3),rep(0,p-p1-p2-p3))
-  ),nrow = d,byrow = T)
+  ),nrow = d,byrow = TRUE)
   A <- eps*A0
   D0 <- matrix(c(1,0,0,
                  sqrt(beta_0),sqrt(1-beta_0),0,
-                 0,0,0),nrow = d,byrow = F)
+                 0,0,0),nrow = d,byrow = FALSE)
   D <- eps*D0
   q <- ncol(D)
   L_total <- q+p
-  psi <- matrix(rnorm((d+L_total)*n,mean = 0,1),n)
+  psi <- MASS::mvrnorm(n,mu = rep(0,d+L_total),Sigma = diag(d+L_total))
   phi <- psi[,1:d,drop=F]
-  errorX <- matrix(rep(sqrt(1-apply(A^2,2,sum)),n),n,byrow = T)
-  errorY <- matrix(rep(sqrt(1-apply(D^2,2,sum)),n),n,byrow = T)
+  errorX <- matrix(rep(sqrt(1-apply(A^2,2,sum)),n),n,byrow = TRUE)
+  errorY <- matrix(rep(sqrt(1-apply(D^2,2,sum)),n),n,byrow = TRUE)
   X <- phi%*%A + errorX*psi[,d+1:p,drop=F]
   Y <- phi%*%D + errorY*psi[,d+p+1:q,drop=F]
   list(X=X,Y=Y)
@@ -70,49 +65,49 @@ lambdaSparse <- c(0.5172414,0.4482759)
 
 
 
-## ----loadPAckage,eval=F-------------------------------------------------------
+## ----loadPAckage,eval=FALSE---------------------------------------------------
 #  devtools::install_github("hlorenzo/ddsPLS")
 #  library(ddsPLS)
 
-## ----loadPAckage2,echo=F------------------------------------------------------
+## ----loadPAckage2,echo=FALSE--------------------------------------------------
 library(ddsPLS)
 
-## ----noCor, eval=T------------------------------------------------------------
+## ----noCor, eval=TRUE---------------------------------------------------------
 eps <- 0.95
-n <- 100
+n <- 200
 alpha <- 0.1
 datas <- getData(n=n,alpha=alpha,beta_0=0.1,sigma=sqrt(1-eps^2),
-                 p1=50,p2=25,p3=25,p=300)
+                 p1=50,p2=25,p3=25,p=1000)
 
-## ----noCor2, eval=T-----------------------------------------------------------
+## ----noCor2, eval=TRUE--------------------------------------------------------
 lambdas <- seq(0,1,length.out = 30)
-n_B <- 20
+n_B <- 200
 
-## ----noCor3, eval=F-----------------------------------------------------------
+## ----noCor3, eval=FALSE-------------------------------------------------------
 #  NCORES <- 4
 #  mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdas,
-#                n_B=n_B,NCORES=NCORES,verbose = F)
+#                n_B=n_B,NCORES=NCORES,verbose = FALSE)
 
-## ----noCor3hide, echo=F-------------------------------------------------------
+## ----noCor3hide, echo=FALSE---------------------------------------------------
 mo <- ddsPLS( datas$X, datas$Y,lambdas = lambdaSparse,
-              n_B=n_B,NCORES=1,verbose = F)
+              n_B=n_B,NCORES=1,verbose = FALSE)
 
 ## ----summ---------------------------------------------------------------------
-sum_up <- summary(mo,return = T)
+sum_up <- summary(mo,return = TRUE)
 
 ## ----selX---------------------------------------------------------------------
 setdiff(1:75,mo$Selection$X)
 
-## ----noCor30, eval=F----------------------------------------------------------
+## ----noCor30, eval=FALSE------------------------------------------------------
 #  mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
-#                 n_B=n_B,NCORES=NCORES,verbose = F)
-#  sum0 <- summary(mo0,return = T)
+#                 n_B=n_B,NCORES=NCORES,verbose = FALSE)
+#  sum0 <- summary(mo0,return = TRUE)
 #  print(sum0$R2Q2[,c(1,4)])
 
 ## -----------------------------------------------------------------------------
 mo0 <- ddsPLS( datas$X, datas$Y,lambdas = 0,
-               n_B=n_B,NCORES=1,verbose = F)
-sum0 <- summary(mo0,return = T)
+               n_B=n_B,NCORES=1,verbose = FALSE)
+sum0 <- summary(mo0,return = TRUE)
 
 ## -----------------------------------------------------------------------------
 print(sum0$R2Q2[,c(1,4)])
@@ -121,10 +116,10 @@ print(sum_up$R2Q2[,c(1,4)])
 ## ----est,fig.width=5,fig.height=5,fig.align="center"--------------------------
 plot(mo,type="predict",legend.position = "topleft")
 
-## ----criterion,fig.width=7,fig.height=5,fig.align="center",eval=F-------------
+## ----criterion,fig.width=7,fig.height=5,fig.align="center",eval=FALSE---------
 #  plot(mo,type="criterion",legend.position = "top")
 
-## ----criterionhide,fig.width=7,fig.height=5,fig.align="center",echo=F---------
+## ----criterionhide,fig.width=7,fig.height=5,fig.align="center",echo=FALSE-----
 h_opt <- 2
 matplot(lambdas,R2mean_diff_Q2mean,type = "l",ylab="",xlab=expression(lambda),
               main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
@@ -136,10 +131,10 @@ legend("top",paste("Comp.",1:h_opt," (",round(mo$varExplained$Comp),"%)",sep="")
        col = 1:h_opt,pch=16,bty = "n",
        title = paste("Total explained variance ",round(mo$varExplained$Cumu)[h_opt],"%",sep=""))
 
-## ----Q2r,fig.width=7,fig.height=5,eval=F--------------------------------------
+## ----Q2r,fig.width=7,fig.height=5,eval=FALSE----------------------------------
 #  plot(mo,type="Q2",legend.position = "bottomleft")
 
-## ----Q2rhide,fig.width=7,fig.height=5,echo=F----------------------------------
+## ----Q2rhide,fig.width=7,fig.height=5,echo=FALSE------------------------------
 h_opt <- 2
 matplot(lambdas,Q2mean,type = "l",ylab="",xlab=expression(lambda),
               main=bquote(bar(R)[B]^2-bar(Q)[B]^2))
@@ -152,10 +147,10 @@ legend("bottomleft",paste("Comp.",1:h_opt," (",round(mo$varExplained$Comp),"%)",
        col = 1:h_opt,pch=16,bty = "n",
        title = paste("Total explained variance ",round(mo$varExplained$Cumu)[h_opt],"%",sep=""))
 
-## ----prop,fig.width=7,fig.height=5,fig.align="center",eval=F------------------
+## ----prop,fig.width=7,fig.height=5,fig.align="center",eval=FALSE--------------
 #  plot(mo,type="prop",legend.position = "bottomleft")
 
-## ----prophide,fig.width=7,fig.height=5,echo=F---------------------------------
+## ----prophide,fig.width=7,fig.height=5,echo=FALSE-----------------------------
 h_opt <- 2
 # Plot of Prop of positive Q2h
 matplot(lambdas,PropQ2hPos,type = "l",ylab="",xlab=expression(lambda),
@@ -177,6 +172,6 @@ plot(mo,type="weightY",mar=c(4,7,2,1))
 ## ----wx2,fig.width=7,fig.height=3,fig.align="center"--------------------------
 plot(mo,type="weightX",cex.names = 0.5 )
 
-## ----getData2,echo=T----------------------------------------------------------
+## ----getData2,echo=TRUE-------------------------------------------------------
 getData
 

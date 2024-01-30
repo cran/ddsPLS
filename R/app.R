@@ -1,13 +1,13 @@
 #' Applet to start ddsPLS
 #'
-#' @param ... No parameter is needed explicitly for this app.
+#' @param ... Same parameters as ddsPLS
 #'
-#' @return Nothing due to the nature of the applet.
+#' @return Mainly visual objects, also possible to save plots
+#'
+#' @importFrom shiny actionButton br checkboxInput eventReactive fileInput fluidPage h2 h3 icon mainPanel navbarPage numericInput plotOutput radioButtons reactive renderPlot renderPrint renderTable renderText req safeError selectInput shinyApp sidebarLayout sidebarPanel tabPanel tableOutput tabsetPanel tags textInput textOutput titlePanel updateSelectInput verbatimTextOutput
+#'
 #'
 #' @export
-#'
-#' @importFrom stats rnorm
-#' @import shiny
 #'
 ddsPLS_App <- function(...) {
   vizu <- c("predict","Q2","criterion", "Q2r", "R2r", "R2", "weightX",
@@ -40,11 +40,11 @@ ddsPLS_App <- function(...) {
     x1 <- cbind(matrix(rep(phi[,1,drop=FALSE],p1_1),byrow = F,nrow = n) + rnorm(n*p1_1,sd = 0.4),
                 matrix(rep(phi[,1,drop=FALSE]+phi[,2,drop=FALSE],p1_2),byrow = F,nrow = n) + rnorm(n*p1_2,sd = 0.4),
                 matrix(rep(phi[,2,drop=FALSE],p1_3),byrow = F,nrow = n) + rnorm(n*p1_3,sd = 0.4))
-    x2<- cbind(matrix(rep(phi[,1,drop=FALSE],p2_1),byrow = F,nrow = n) + rnorm(n*p2_1,sd = sd2),
-               matrix(rnorm(n*p2,sd=sd2),byrow = F,nrow = n))
+    x2<- cbind(matrix(rep(phi[,1,drop=FALSE],p2_1),byrow = FALSE,nrow = n) + rnorm(n*p2_1,sd = sd2),
+               matrix(rnorm(n*p2,sd=sd2),byrow = FALSE,nrow = n))
     list(x1[,-c(1:p1_1)],x2,y)
   }
-  cols_gps <- c("#E41A1C","#377EB8","#4DAF4A","#984EA3","#FF7F00")
+  cols_gps <- brewer.pal(5,"Set1")
   ui <- fluidPage(
     #=======================================
     navbarPage("ddsPLS (data-driven Sparse PLS)",
@@ -59,7 +59,7 @@ ddsPLS_App <- function(...) {
                             fileInput("fileY", "Choose CSV File for Y",
                                       multiple = TRUE,
                                       accept = c("text/csv","text/comma-separated-values,text/plain",".csv")),
-                            actionButton("startimport","Upload",icon=icon("upload"), inline=T),
+                            actionButton("startimport","Upload",icon=icon("upload"), inline=TRUE),
                             tags$hr(),
                             h2("Analysis"),
                             h3("Classical analysis"),
@@ -75,7 +75,7 @@ ddsPLS_App <- function(...) {
                             tableOutput("summaryShortAnal"),
                             h2("Test data"),
                             fileInput("fileXTest", "Choose CSV Files for X test",multiple = TRUE,accept = c("text/csv","text/comma-separated-values,text/plain",".csv")),
-                            actionButton("startimportTest","Upload Test",icon=icon("upload"), inline=T)
+                            actionButton("startimportTest","Upload Test",icon=icon("upload"), inline=TRUE)
                           ),
                           mainPanel(
                             tabsetPanel(
@@ -83,9 +83,9 @@ ddsPLS_App <- function(...) {
                                 title = "The data",
                                 h2("Settings upload"),
                                 checkboxInput("header", "Header", TRUE),
-                                radioButtons("sep", "Separator",choices = c(Comma = ",",Semicolon = ";",Tab = "\t"),selected = ";", inline=T),
-                                radioButtons("dec", "Decimal",choices = c(Point = ".",Comma = ","),selected = ",", inline=T),
-                                radioButtons("quote", "Quote",choices = c(None = "","Double Quote" = '"',"Single Quote" = "'"),selected = '"', inline=T),
+                                radioButtons("sep", "Separator",choices = c(Comma = ",",Semicolon = ";",Tab = "\t"),selected = ";", inline=TRUE),
+                                radioButtons("dec", "Decimal",choices = c(Point = ".",Comma = ","),selected = ",", inline=TRUE),
+                                radioButtons("quote", "Quote",choices = c(None = "","Double Quote" = '"',"Single Quote" = "'"),selected = '"', inline=TRUE),
                                 tags$hr(),
                                 h2("General structure"),
                                 textOutput("files_n"),
@@ -131,9 +131,9 @@ ddsPLS_App <- function(...) {
                                         tags$b("hlorenzo/ddsPLS"))
                         ),
                         br(),
-                        "hadrien.lorenzo.2015@gmail.com",
+                        "hadrien.lorenzo@inria.fr",
                         br(),
-                        "2023 May"
+                        "2022 January"
                )
     )
     #=======================================
@@ -154,12 +154,16 @@ ddsPLS_App <- function(...) {
     sizeplot <- reactive({
       input$sizeplot
     })
+    # gamma <- reactive({
+    #   input$gamma
+    # })
     sizeplot2 <- reactive({
       input$sizeplot2
     })
     sizeplot3 <- reactive({
       input$sizeplot3
     })
+    # print("A")
     datasR <- eventReactive(input$startimport, {
       K <- nrow(fileX())
       tryCatch(
@@ -194,6 +198,7 @@ ddsPLS_App <- function(...) {
            outputFiles=outputFiles,
            colsReal=unlist(lapply(1:length(ps),function(k){rep(k,ps[k])})))
     })
+    # print("B")
     X_test <- eventReactive(input$startimportTest, {
       K <- nrow(fileXTest())
       tryCatch(
@@ -209,6 +214,7 @@ ddsPLS_App <- function(...) {
       )
       do.call(cbind,dfX_list)
     })
+    # print("C")
     output$headerBlock <- renderTable({
       dada <- datasR()
       outputFiles <- dada$outputFiles
@@ -220,6 +226,7 @@ ddsPLS_App <- function(...) {
       }
       out
     })
+    # print("D")
     output$plot1R <- renderPlot({
       dada <- datasR()
       posHead <- which(dada$outputFiles[,1]==input$inSelect)
@@ -267,7 +274,9 @@ ddsPLS_App <- function(...) {
       image(t(seq(-1,1,length.out = 24*4)),xaxt="n",las=2,zlim=c(-1,1),col=cols,yaxt="n",main="Legend")
       axis(2,at = (0:10)/10,labels = seq(-1,1,length.out = 11),las=2)
     },width = sizeplot2)
+    # print("E")
     modelAnal <- eventReactive(input$runAnal, {
+      print("A")
       req(fileX(),fileY())
       x <- as.matrix(do.call(cbind,datasR()$Xs))
       y <- as.matrix(datasR()$Y)
@@ -275,18 +284,22 @@ ddsPLS_App <- function(...) {
       mo <- ddsPLS(x,y,verbose=F,doBoot = F,lambdas = lams)
       return(mo)
     })
+    # print("F")
+    # print("G")
     model <- eventReactive(input$runB, {
       req(fileX(),fileY())
       x <- as.matrix(do.call(cbind,datasR()$Xs))
       y <- as.matrix(datasR()$Y)
       mo <- ddsPLS(x,y,
-                   verbose=F,doBoot = T,NCORES = input$NCORES,
+                   verbose=FALSE,doBoot = TRUE,NCORES = input$NCORES,
                    lambdas = NULL,n_B = input$n_B)
       return(mo)
     })
+    # print("H")
     output$summary <- renderPrint({
       summary(model())
     })
+    # print("I")
     output$summaryShortAnal <- renderTable({
       req(modelAnal())
       R <- modelAnal()$R
@@ -312,9 +325,18 @@ ddsPLS_App <- function(...) {
       }
       out
     })
+    # print("K")
     output$plot2 <- renderPlot({
       mo <- model()
       if(is.null(mo)) mo <- modelAnal()
+      # if(gamma()!=0)
+      # {
+      #   x <- as.matrix(do.call(cbind,datasR()$Xs))
+      #   y <- as.matrix(datasR()$Y)
+      #   lambda_gamma <- mo$lambda
+      #   mo <- ddsPLS(x,y,lambdas = lambda_gamma,gamma=gamma(),
+      #                NCORES=1,verbose =F,doBoot = F)
+      # }
       noModel <- mo$R==0
       if(!noModel){
         colo <- datasR()$colsReal
@@ -324,6 +346,7 @@ ddsPLS_App <- function(...) {
         text(x = 0,y=0,"Nothing to be plotted because model is empty.")
       }
     },height = sizeplot)
+    # print("L")
     output$plottest <- renderPlot({
       x_test <- X_test()
       if(is.data.frame(x_test)){

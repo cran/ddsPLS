@@ -8,7 +8,7 @@
   object,
   X_test = NULL,
   toPlot = FALSE,
-  doDiagnosis = TRUE,
+  doDiagnosis = T,
   legend.position = "topright",
   cex = 1,
   cex.text = 1,
@@ -16,7 +16,7 @@
 )
 }
 \arguments{
-\item{object}{ddsPLS object.}
+\item{object}{A ddsPLS object.}
 
 \item{X_test}{matrix, a test data-set. If is "NULL", the default value,
 the predicted values for the train test are returned.}
@@ -24,8 +24,7 @@ the predicted values for the train test are returned.}
 \item{toPlot}{boolean, wether or not to plot the extreme value test plot.
 Default to `TRUE`.}
 
-\item{doDiagnosis}{boolean, wether or not to perform the diagnoses
-operations. See \code{Value} section for more details.}
+\item{doDiagnosis}{Yes or no to perform diagnosis.}
 
 \item{legend.position}{character. Where to put the legend.}
 
@@ -35,78 +34,10 @@ symbols should be scaled relative to the default.}
 \item{cex.text}{float positive. Number indicating the amount by which
 plotting text elements should be scaled relative to the default.}
 
-\item{\ldots}{arguments to be passed to methods, such as graphical parameters.}
-}
-\value{
-A list of two objects:
-\itemize{
-    \item{\code{Y_est}}{ the estimated values for the response variable.}
-    \item{\code{diagnoses}}{ the results of diagnostic operations, useful to detect
-    potential outliers in the dataset.}}
+\item{...}{Other parameters}
 }
 \description{
 Function to predict from ddsPLS objects
-}
-\details{
-The diagnostic descriptors are usefull to detect potential outliers
-in the \code{train} or in the \code{test} datasets. This can be appreciated
-putting the parameter \code{toPlot} to \code{TRUE}. Thus a graph is created
-projecting, the observations \eqn{i} of the \code{train} and the \code{test}
-datasets, in the \bold{standardized} subspaces spanned by the \code{ddsPLS} model:
-    \deqn{
-    \left(
-    \epsilon_x(i),\epsilon_t(i)
-    \right)=
-    \left(
-        \dfrac{1}{\sqrt{p}}\sqrt{\sum_{j=1}^p \left(\dfrac{\left[\hat{\mathbf{x}}_i-
-        \mathbf{x}_i\right]_{(j)}}{\hat{\sigma}_j^{(x)}}\right)^2},
-        \dfrac{1}{\sqrt{R}}\sqrt{\sum_{r=1}^R \left(\dfrac{\hat{{t}}_i^{(r)}}
-        {\hat{\sigma}_r}\right)^2}
-    \right),
-    }
-    where \eqn{[\cdot]_{(j)}} takes the \eqn{j^{th}} coordinate of its argument.
-    The different estimators are
-    \deqn{
-        \hat{{t}}_i^{(r)} = (\mathbf{x}_i-\hat{\boldsymbol{\mu}}_\mathbf{x})
-        \mathbf{u}_r,
-    }
-    \deqn{
-        \hat{\mathbf{x}}_i = \dfrac{1}{R}(\mathbf{x}_i-\hat{\boldsymbol{\mu}}_\mathbf{x})
-        \sum_{r=1}^R\mathbf{u}_r\mathbf{p}_r^\top,
-    }
-    plus \eqn{\forall j\in[\![1,p]\!]}, \eqn{\hat{\sigma}_j^{(x)2}} is the
-    estimated empirical variance of the \eqn{j^{th}} variable of \code{X}
-    estimated on the \code{train} set of size \eqn{n}.
-    Also, \eqn{\hat{\sigma}_r^2=\dfrac{1}{n}\sum_{j=1}^n\left((\mathbf{x}_j-\hat{\boldsymbol{\mu}}_\mathbf{x})
-    \mathbf{u}_r\right)^2} is thus the estimated empirical variance of
-    the \eqn{r^{th}}-component. Further, \eqn{R} is the approximated
-    number of components of the \code{ddsPLS} model, \eqn{\hat{\boldsymbol{\mu}}_\mathbf{x}}
-    is the empirical mean of \code{X}, \eqn{\mathbf{u}_r} is the weight of
-    \code{X} along the \eqn{r^{th}} component, \eqn{\mathbf{p}_r} is the
-    loading for \code{X}.
-    The \code{diagnoses} object of the output is filled with two lists:
-    \itemize{
-       \item{\code{$object}}{ the first coordinate of the previous bivariate
-       description corresponding to the reconstruction by the \code{ddsPLS}
-       model.}
-       \item{\code{$t}}{ the second coordinate of the previous bivariate
-       description, corresponding to the score.}
-    }
-}
-\examples{
-n <- 100 ; d <- 2 ; p <- 20 ; q <- 2 ; n_test <- 1000
-phi <- matrix(rnorm(n*d),n,d)
-phi_test <- matrix(rnorm(n_test*d),n_test,d)
-a <- rep(1,p/4) ; b <- rep(1,p/2)
-X <- phi\%*\%matrix(c(1*a,0*a,0*b,1*a,3*b,0*a),nrow = d,byrow = TRUE) +
-matrix(rnorm(n*p,sd = 1/4),n,p)
-X_test <- phi_test\%*\%matrix(c(1*a,0*a,0*b,1*a,3*b,0*a),nrow = d,byrow=TRUE) +
-matrix(rnorm(n_test*p,sd = 1/4),n_test,p)
-Y <- phi\%*\%matrix(c(1,0,0,0),nrow = d,byrow = TRUE) +
-matrix(rnorm(n*q,sd = 1/4),n,q)
-res <- ddsPLS(X,Y,verbose=FALSE)
-pre <- predict(res,X_test = X_test,toPlot = TRUE,doDiagnosis = TRUE)
-
 }
 \seealso{
 \code{\link{ddsPLS}}, \code{\link{plot.ddsPLS}}, \code{\link{summary.ddsPLS}}

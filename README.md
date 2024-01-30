@@ -1,8 +1,10 @@
-# Data Driven Sparse PLS (**ddsPLS**)
+# Data Driven Sparse PLS(**ddsPLS**)
 
 **ddsPLS** is a sparse PLS formulation based on soft-thresholding estimations of covariance matrices.
 
 ## Installation
+
+There is currently one way to install **ddsPLS**
 
   * From the under development repository from GitHub thanks to `devtools`
 
@@ -11,15 +13,13 @@
   devtools::install_github("hlorenzo/ddsPLS", build_vignettes = TRUE)
   ```
   
-Once that package is installed, you can access the `vignette("start_ddsPLS")` using that command.
+Once that package is installed, you can access the vignette using that command.
 
   ```r
   vignette("ddsPLS")
   ```
-
-## The application
-
-It is also possible to use the developped applet using 
+  
+It is also possible to start a built in applet using 
 
   ```r
   ddsPLS_App()
@@ -27,6 +27,6 @@ It is also possible to use the developped applet using
 
 and it should start an interactive interface which should look like
 
-![](inst/extdata/appCrop.png)
+![ddsPLS applet](appCrop.png)
 
-## Thanks for using!
+Thanks for using!

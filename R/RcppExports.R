@@ -13,25 +13,10 @@
 #' @param n The number of observations.
 #' @param p The number of variables of X part.
 #' @param q The number of variables of Y part.
-#' @param lambda0 The lowest value to be tested for lambda.
-#'
-#' @return A list containing the PLS parameters:
-#' \itemize{
-#'   \item \code{$P}: Loadings for \code{X}.
-#'   \item \code{$C}: Loadings for \code{Y}.
-#'   \item \code{$t}: Scores.
-#'   \item \code{$V}: Weights for \code{Y}.
-#'   \item \code{$U}: Loadings for \code{X}.
-#'   \item \code{$U_star}: Loadings for \code{X} in original base: $U_star=U(P'U)^{-1}$.
-#'   \item \code{$B}: Regression matrix of \code{Y} on \code{X}.
-#'   \item \code{$muY}: Empirical mean of \code{Y}.
-#'   \item \code{$muX}: Empirical mean of \code{X}.
-#'   \item \code{$sdY}: Empirical standard deviation of \code{Y}.
-#'   \item \code{$sdX}: Empirical standard deviation of \code{X}.
-#'}
+#' @param lambda0 The vector of regulation parameters.
 #'
 modelddsPLSCpp_Rcpp <- function(U, V, X, Y, lambdas, R, n, p, q, lambda0) {
-    .Call(`_ddsPLS_modelddsPLSCpp_Rcpp`, U, V, X, Y, lambdas, R, n, p, q, lambda0)
+    .Call('_ddsPLS_modelddsPLSCpp_Rcpp', PACKAGE = 'ddsPLS', U, V, X, Y, lambdas, R, n, p, q, lambda0)
 }
 
 #' @title C++ implementation of the bootstrap operations
@@ -51,11 +36,9 @@ modelddsPLSCpp_Rcpp <- function(U, V, X, Y, lambdas, R, n, p, q, lambda0) {
 #' @param p The number of variables of X part.
 #' @param q The number of variables of Y part.
 #' @param N_lambdas The number of to be tested values for lambda.
-#' @param lambda0 The minimum value to be checked in lambdas.
-#'
-#' @return The bootstrapped statistics
+#' @param lambda0 The vector of lambda0
 #'
 bootstrap_Rcpp <- function(U, V, X, Y, lambdas, lambda_prev, R, n_B, doBoot, n, p, q, N_lambdas, lambda0) {
-    .Call(`_ddsPLS_bootstrap_Rcpp`, U, V, X, Y, lambdas, lambda_prev, R, n_B, doBoot, n, p, q, N_lambdas, lambda0)
+    .Call('_ddsPLS_bootstrap_Rcpp', PACKAGE = 'ddsPLS', U, V, X, Y, lambdas, lambda_prev, R, n_B, doBoot, n, p, q, N_lambdas, lambda0)
 }
 

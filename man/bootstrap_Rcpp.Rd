@@ -48,10 +48,7 @@ bootstrap_Rcpp(
 
 \item{N_lambdas}{The number of to be tested values for lambda.}
 
-\item{lambda0}{The minimum value to be checked in lambdas.}
-}
-\value{
-The bootstrapped statistics
+\item{lambda0}{The vector of lambda0}
 }
 \description{
 Start the bootstrap operations.

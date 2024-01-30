@@ -11,7 +11,7 @@
   legend.position = "topright",
   horiz = TRUE,
   biPlot = FALSE,
-  comp = c(1, 2),
+  las = 0,
   col = NULL,
   cex.names = 1,
   mar = c(5, 4, 4, 2) + 0.1,
@@ -21,11 +21,9 @@
 \arguments{
 \item{x}{A ddsPLS object}
 
-\item{type}{The type of graphics. One of "criterion" (default),
+\item{type}{The type of graphics. One of "criterion" (default), "total",
 "prop", "predict", "Q2r", "Q2", "R2r", "R2", "weightX", "weightY",
- "loadingX" or "loadingY". The type "prop" corresponds to the proportion of
- models with positive \eqn{Q_{r}^2} among the bootstrapped evaluations for
- each of the to be tested values for \code{lambda}.}
+ "loadingX" or "loadingY".}
 
 \item{digits}{double. Rounding of the written explained variance.}
 
@@ -33,10 +31,9 @@
 
 \item{horiz}{boolean. Whether to plot horizontally.}
 
-\item{biPlot}{boolean. Whether to plot one component versus another one.}
+\item{biPlot}{boolean wether or not to plot one component versus the other.}
 
-\item{comp}{vector of two integers. Taken into account only if
-\code{biplot=TRUE}.}
+\item{las}{numeric in (0,1,2,3): the style of axis labels.}
 
 \item{col}{vector. Mainly to modify bars in weight plots.}
 
@@ -44,33 +41,10 @@
 
 \item{mar}{vector. The margins for the plot.}
 
-\item{\ldots}{arguments to be passed to methods, such as graphical parameters.}
-}
-\value{
-No return value, called for side effects.
+\item{...}{Other plotting parameters to affect the plot.}
 }
 \description{
 Function to plot bootstrap performance results of the ddsPLS algorithm
-}
-\examples{
-n <- 100 ; d <- 2 ; p <- 20 ; q <- 2
-phi <- matrix(rnorm(n*d),n,d)
-a <- rep(1,p/4) ; b <- rep(1,p/2)
-X <- phi\%*\%matrix(c(1*a,0*a,0*b,1*a,3*b,0*a),nrow = d,byrow = TRUE) +
-matrix(rnorm(n*p,sd = 1/4),n,p)
-Y <- phi\%*\%matrix(c(1,0,0,0),nrow = d,byrow = TRUE) +
-matrix(rnorm(n*q,sd = 1/4),n,q)
-res <- ddsPLS(X,Y,verbose=FALSE)
-
-## Plot criterion
-plot(res,type = "criterion")
-## Univariate weights of X, same with Y
-plot(res,type = "weightX")
-## Bivariate weights of X, same with Y
-plot(res,type = "weightX",biPlot = TRUE)
-## Modify margins to fit the window
-plot(res,type = "weightY",mar = c(3,7,3,3))
-
 }
 \seealso{
 \code{\link{ddsPLS}}, \code{\link{predict.ddsPLS}}, \code{\link{summary.ddsPLS}}
